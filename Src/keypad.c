@@ -1,0 +1,270 @@
+#include "main.h"
+#include "global.h"   // здесь определена структура eeprom и структура rampv
+#include "keypad.h"
+#include "proc.h"
+
+extern int8_t countsec, getButton, displmode;
+extern uint8_t ok0, ok1, keyBuffer[], setup, waitset, waitkey, modules, servis;
+extern int16_t alarmErr;
+uint8_t disableBeep, topOwner, topUser, botUser, psword, keynum;
+int16_t buf;
+/*
+void pushkey(void){
+ uint8_t xx, keykod;
+  getButton = 0;
+  HAL_GPIO_TogglePin(LED2_GPIO_Port, LED2_Pin);
+  ReadKeyTM1638();
+  keykod=0;
+  for (uint8_t i=0;i<4;i++){
+  xx =  keyBuffer[i]; 
+  xx <<= i; 
+  keykod |= xx;
+  if (keyBuffer[i]==0x01) LedInverse(i,1);
+  else if (keyBuffer[i]==0x10) LedInverse(i+4,1);
+  }
+  SendDataTM1638();  
+}
+*/
+void checkkey(struct eeprom *t, int16_t pvT0){
+  uint8_t xx, keykod;
+//HAL_GPIO_TogglePin(LED2_GPIO_Port, LED2_Pin);//????????????????????????????????????????????????????????? 
+  ReadKeyTM1638();  
+  keykod=0;
+  for (uint8_t i=0;i<4;i++){xx =  keyBuffer[i]; xx <<= i; keykod |= xx;}   // определяем нажатые кнопки
+  if ((keynum == keykod)&&keynum) {xx = 1; getButton=0;}  // код повторился начинаем обраьотку нажатых кнопок (getButton=0) дополнительная задержка на срабатывание кнопки
+  else {keynum = keykod; xx= 0; waitkey=WAITCOUNT; getButton=waitkey/4;}
+  if (xx){
+    DISPLAY=1;
+    if (setup){                // режим РЕДАКТИРОВАНИЯ УСТАВОК И ПАРАМЕТРОВ
+        waitset=10;            // удерживаем режим установок
+        switch (keykod)
+          {
+           case KEY_1:
+             {
+              if (++setup>topOwner) setup=1;           // Меню пользователя
+              switch (setup)
+                {
+                 case 1:  buf=t->spT[0]; break;         // У1 Уставка температуры
+                 case 2:  if(HIH5030||AM2301) buf=t->spRH[1]; else buf=t->spT[1]; break;// У2 Уставка влажности
+                 case 3:  buf=t->timer[0]; break;       // У3 время отключенного состояния
+                 case 4:  buf=t->timer[1]; break;       // У4 время включенного состояния (если не 0 то это секунды)
+                 case 5:  buf=t->alarm[0]; break;       // У5 тревога по каналу 1
+                 case 6:  buf=t->alarm[1]; break;       // У6 тревога по каналу 2
+                 case 7:  buf=t->extOn[0]; break;       // У7 смещение для ВКЛ. вспомогательного канала 1
+                 case 8:  buf=t->extOff[0]; break;      // У8 смещение для ОТКЛ. вспомогательного канала 1
+                 case 9:  buf=t->extOn[1]; break;       // У9 смещение для ВКЛ. вспомогательного канала 2
+                 case 10: buf=t->extOff[1]; break;      // У10 смещение для ОТКЛ. вспомогательного канала 2
+                 case 11: if(modules&4) buf=t->spCO2; else buf=t->air[0]; break;// У11 MAX CO2 / Пауза между ПРОВЕТРИВАНИЕМ
+                 case 12: if(modules&4) buf=t->spCO2; else buf=t->air[1]; break;// У12 MIN CO2 / Длительность ПРОВЕТРИВАНЯ
+                } 
+             } break;
+           case KEY_2:
+             {
+              buf++; EEPSAVE=1; if (waitkey) waitkey--;
+              switch (setup)
+               {
+                case 1:  t->spT[0]=buf; break;                                                                   // У1  Уставка температуры
+                case 2:  if (HIH5030||AM2301) t->spRH[1]=buf; else t->spT[1]=buf; break;                         // У2  Уставка влажности
+                case 3:  if (buf<1) buf=1; t->timer[0]=buf; break;                                               // У3  время отключенного состояния
+                case 4:  t->timer[1]=buf; break;                                                                 // У4  время включенного состояния (секунды)
+                case 5:  buf&=0x1F; if (buf<1) buf=1; t->alarm[0]=buf; break;                                    // У5  тревога по каналу 1
+                case 6:  buf&=0xFF; if (buf<1) buf=1; t->alarm[1]=buf; break;                                    // У6  тревога по каналу 2
+                case 7:  buf&=0x1F; if (buf<t->extOff[0]) buf=t->extOff[0]; t->extOn[0]=buf; break;              // У7  смещение для ВКЛ. вспомогательного канала 1
+                case 8:  if(buf>t->extOn[0]) buf=t->extOn[0]; else if (buf<1) buf=1; t->extOff[0]=buf; break;    // У8  смещение для ОТКЛ. вспомогательного канала 1
+                case 9:  buf&=0x1F; if (buf<t->extOff[1]) buf=t->extOff[1]; t->extOn[1]=buf; break;              // У9  смещение для ВКЛ. вспомогательного канала 2
+                case 10: if(buf>t->extOn[1]) buf=t->extOn[1]; else if (buf<1) buf=1; t->extOff[1]=buf; break;    // У10 смещение для ОТКЛ. вспомогательного канала 2
+                case 11: 
+                         if(buf<1) buf=1; buf&=0xFF;
+                         if(modules&4) t->spCO2=buf; else t->air[0]=buf;
+                  break;                                                                                         // У11 MAX CO2 / Пауза между ПРОВЕТРИВАНИЕМ
+                case 12:
+                         if(buf<0) buf=0; buf&=0xFF;
+                         if(modules&4) t->spCO2=buf; else t->air[1]=buf;
+                  break;                                                                                         // У12 MIN CO2 / Длительность ПРОВЕТРИВАНЯ
+                //------------------------------------ П00 -------------------------------------------------------------------
+                case 16: switch (buf){
+                          case  3: topOwner=14; break;// разрешение вводить корекцию датчика влажности
+                          case 10: topUser=TOPKOFF; botUser=BOTKOFF; break; // разрешение вводить корекцию коэфициентов cof[3];
+                         };
+                         EEPSAVE=0; waitset=20;
+                  break;
+                //--------------------------- Меню специалиста ---------------------------------------------------------
+                case 17: if(buf) t->extendMode=1; else t->extendMode=0; break;           // расширенный режим работы  0-СИРЕНА; 1-АВАРИЙНОЕ ОТКЛЮЧЕНИЕ
+                case 18: if(buf>MAXRELAYMODE) buf=MAXRELAYMODE; else if(buf<MINRELAYMODE) buf=MINRELAYMODE; t->relayMode=buf;
+                         if(t->relayMode==4) topUser=PULSMENU; else topUser=TOPUSER; break;//релейный режим работы
+                case 19: if(buf<100) buf=100; else if(buf>6000) buf=6000; t->minRun=buf; break;// ограничено 100-6000 mS;
+                case 20: if(buf<1) buf=1; else if(buf>60) buf=60; t->maxRun=buf; break;    // ограничено 1-60 секунд;
+                case 21: if(buf<5) buf=5; else if(buf>600) buf=600; t->period=buf; break;// ограничено 5-600 секунд (10 мин.);
+                
+                case 26: if(buf>32) buf=32; else if (buf<-64) buf=-64; t->spRH[0]=buf; break; // подстройка датчика HIH-4000
+                case 27: t->Hysteresis = buf&3; break;                                // гистерезис
+                case 28: buf&=0x03F; if(buf<1) buf=1; t->K[0]=buf; break;         // ограничено 1 - 63;
+                case 29: buf&=0x3FF; if(buf<100) buf=100; t->Ti[0]=buf; break;    // ограничено 100 - 1023;
+                case 30: buf&=0x03F; if(buf<1) buf=1; t->K[1]=buf; break;         // ограничено 1 - 63;
+                case 31: buf&=0x3FF; if(buf<100) buf=100; t->Ti[1]=buf; break;    // ограничено 100 - 1023;
+               }; 
+             } break;
+           case KEY_3:
+             {
+              ++setup;
+              if (setup>topUser||setup<botUser) setup=botUser;// Меню специалиста
+              switch (setup)
+                {
+                 case 16: buf=0; break;               // П0 сброс параметров
+                 case 17: buf=t->extendMode; break;   // П1 = расширенный режим работы
+                 case 18: buf=t->relayMode; break;    // П2 = режим ПИД/реле
+                
+                 case 19: buf=t->minRun; break;   // П3 = 1000 - 1,0 сек.
+                 case 20: buf=t->maxRun; break;   // П4 =   10 - 10,0 сек.
+                 case 21: buf=t->period; break;   // П5 =   60 - 60 сек.
+                 
+                 case 26: buf=t->spRH[0]; break;      // П10 подстройка датчика HIH-4000
+                 case 27: buf=t->Hysteresis; break;   // П11 гистерезис канала увлажнения 
+                 case 28: buf=t->K[0]; break;         // П12 = 20
+                 case 29: buf=t->Ti[0]; break;        // П13 = 500
+                 case 30: buf=t->K[1]; break;         // П14 = 15
+                 case 31: buf=t->Ti[1]; break;        // П15 = 900
+                }
+             } break;
+           case KEY_4:
+             {
+              buf--; EEPSAVE=1; if (waitkey) waitkey--;
+              switch (setup)
+               {
+                case 1:  t->spT[0]=buf; break;                                                                   // У1  Уставка температуры
+                case 2:  if (HIH5030||AM2301) t->spRH[1]=buf; else t->spT[1]=buf; break;                         // У2  Уставка влажности
+                case 3:  if (buf<1) buf=1; t->timer[0]=buf; break;                                               // У3  время отключенного состояния
+                case 4:  t->timer[1]=buf; break;                                                                 // У4  время включенного состояния (секунды)
+                case 5:  buf&=0x1F; if (buf<1) buf=1; t->alarm[0]=buf; break;                                    // У5  тревога по каналу 1
+                case 6:  buf&=0xFF; if (buf<1) buf=1; t->alarm[1]=buf; break;                                    // У6  тревога по каналу 2
+                case 7:  buf&=0x1F; if (buf<t->extOff[0]) buf=t->extOff[0]; t->extOn[0]=buf; break;              // У7  смещение для ВКЛ. вспомогательного канала 1
+                case 8:  if(buf>t->extOn[0]) buf=t->extOn[0]; else if (buf<1) buf=1; t->extOff[0]=buf; break;    // У8  смещение для ОТКЛ. вспомогательного канала 1
+                case 9:  buf&=0x1F; if (buf<t->extOff[1]) buf=t->extOff[1]; t->extOn[1]=buf; break;              // У9  смещение для ВКЛ. вспомогательного канала 2
+                case 10: if(buf>t->extOn[1]) buf=t->extOn[1]; else if (buf<1) buf=1; t->extOff[1]=buf; break;    // У10 смещение для ОТКЛ. вспомогательного канала 2
+                case 11: 
+                         if(buf<1) buf=1; buf&=0xFF;
+                         if(modules&4) t->spCO2=buf; else t->air[0]=buf;
+                  break;                                                                                         // У11 MAX CO2 / Пауза между ПРОВЕТРИВАНИЕМ
+                case 12:
+                         if(buf<0) buf=0; buf&=0xFF;
+                         if(modules&4) t->spCO2=buf; else t->air[1]=buf;
+                  break;                                                                                         // У12 MIN CO2 / Длительность ПРОВЕТРИВАНЯ
+                //------------------------------------ П00 -------------------------------------------------------------------
+                case 16: switch (buf){
+                          case  3: topOwner=14;            break;// разрешение вводить корекцию датчика влажности
+                          case 10: topUser=TOPKOFF; botUser=BOTKOFF; break; // разрешение вводить корекцию коэфициентов cof[3];
+                         };
+                         EEPSAVE=0; waitset=20;
+                  break;
+                //--------------------------- Меню специалиста ---------------------------------------------------------
+                case 17: if(buf) t->extendMode=1; else t->extendMode=0; break;           // расширенный режим работы  0-СИРЕНА; 1-АВАРИЙНОЕ ОТКЛЮЧЕНИЕ
+                case 18: if(buf>MAXRELAYMODE) buf=MAXRELAYMODE; else if(buf<MINRELAYMODE) buf=MINRELAYMODE; t->relayMode=buf;
+                         if(t->relayMode==4) topUser=PULSMENU; else topUser=TOPUSER; break;//релейный режим работы
+                case 19: if(buf<100) buf=100; else if(buf>6000) buf=6000; t->minRun=buf; break;// ограничено 100-6000 mS;
+                case 20: if(buf<1) buf=1; else if(buf>60) buf=60; t->maxRun=buf; break;    // ограничено 1-60 секунд;
+                case 21: if(buf<5) buf=5; else if(buf>600) buf=600; t->period=buf; break;// ограничено 5-600 секунд (10 мин.);
+                
+                case 26: if(buf>32) buf=32; else if (buf<-64) buf=-64; t->spRH[0]=buf; break; // подстройка датчика HIH-4000
+                case 27: t->Hysteresis = buf&3; break;                                // гистерезис
+                case 28: buf&=0x03F; if(buf<1) buf=1; t->K[0]=buf; break;         // ограничено 1 - 63;
+                case 29: buf&=0x3FF; if(buf<100) buf=100; t->Ti[0]=buf; break;    // ограничено 100 - 1023;
+                case 30: buf&=0x03F; if(buf<1) buf=1; t->K[1]=buf; break;         // ограничено 1 - 63;
+                case 31: buf&=0x3FF; if(buf<100) buf=100; t->Ti[1]=buf; break;    // ограничено 100 - 1023;
+               }; 
+             } break;
+           case KEY_6: setup=0;EEPSAVE = 0;displmode=0;psword=0;buf=0;beeper_ON(DURATION*10); break;
+          }; 
+       }
+    else if (servis)          // СЕРВИСНЫЙ режим  ----------------------------
+       {
+        waitset=15;           // удерживаем СЕРВИСНЫЙ режим
+        switch (keykod)
+          {
+           case KEY_2:
+            {
+              buf++; EEPSAVE=1; waitkey=WAITCOUNT;
+              switch (servis)
+               {
+                 case 7:  t->identif = buf&0x3F; break;      // C7 -> identif
+                 case 8:  t->ForceHeat=buf&0x3F; break;      // C8 -> FORCEHEAT Форсированный нагрев
+                 case 9:  t->TurnTime= buf&0x3FF; break;     // C9 -> TURNTIME
+                 case 10: t->TimeOut=(buf&0x3F)*60; break;   // C10-> TIME OUT
+                 case 11: t->HihEnable= buf&0x1; break;      // C11-> разрешено использовать HIH-4000
+                 case 12: t->KoffCurr= buf&0xFF; break;      // C12-> KoffCurr маштабный коэф. по току симистора
+                 case 13: t->coolOn =  buf&0x7F; break;      // C13-> порог включения вентилятора обдува сисмистора
+                 case 14: t->coolOff = buf&0x7F; break;      // C14-> порог отключения вентилятора обдува сисмистора
+                 case 15: t->Zonality= buf&0x3F; break;      // C15-> порог зональности в камере
+               }
+            } break;
+           case KEY_3:
+            {
+              ++servis; servis&=0x0F; displmode=0; waitkey=WAITCOUNT; beeper_ON(DURATION);
+              switch (servis)
+                {
+                 case 7: buf=t->identif; break;           // C7 -> identif
+                 case 8: buf=t->ForceHeat; break;         // C8 -> FORCEHEAT
+                 case 9: buf=t->TurnTime; break;          // C9 -> TURNTIME
+                 case 10: buf=t->TimeOut/60; break;       // C10-> TIME OUT
+                 case 11: buf=t->HihEnable; break;        // C11-> разрешено использовать HIH-4000
+                 case 12: buf=t->KoffCurr; break;         // C12-> KoffCurr маштабный коэф. по току симистора
+                 case 13: buf=t->coolOn; break;           // C13-> порог включения вентилятора обдува сисмистора
+                 case 14: buf=t->coolOff; break;          // C14-> порог отключения вентилятора обдува сисмистора
+                 case 15: buf=t->Zonality; break;         // C15-> порог зональности в камере
+                 default: buf=0;
+                }
+            } break;
+           case KEY_4:
+            {
+              buf--; EEPSAVE=1; waitkey=WAITCOUNT;
+              switch (servis)
+               {
+                 case 7:  t->identif = buf&0x3F; break;      // C7 -> identif
+                 case 8:  t->ForceHeat=buf&0x3F; break;      // C8 -> FORCEHEAT Форсированный нагрев
+                 case 9:  t->TurnTime= buf&0x3FF; break;     // C9 -> TURNTIME
+                 case 10: t->TimeOut=(buf&0x7F)*60; break;   // C10-> TIME OUT
+                 case 11: t->HihEnable= buf&0x1; break;      // C11-> разрешено использовать HIH-4000
+                 case 12: t->KoffCurr= buf&0xFF; break;      // C12-> KoffCurr маштабный коэф. по току симистора
+                 case 13: t->coolOn =  buf&0x7F; break;      // C13-> порог включения вентилятора обдува сисмистора
+                 case 14: t->coolOff = buf&0x7F; break;      // C14-> порог отключения вентилятора обдува сисмистора
+                 case 15: t->Zonality= buf&0x3F; break;      // C15-> порог зональности в камере
+               }
+            } break;
+           case KEY_6: servis=0; EEPSAVE = 0; displmode=0; psword=0; buf=0; topUser=TOPUSER; botUser=BOTUSER; t->condition &=0xE7; beeper_ON(DURATION*10); break;
+          }
+       }
+    else if(psword==10)       // режим ПАРОЛЬ ВВЕДЕН -------------------------
+       {
+        switch (keykod)
+          {
+           case KEY_1: setup=1; servis=0; displmode=0; buf=t->spT[0]; waitset=20; waitkey=WAITCOUNT; beeper_ON(DURATION*2); break;
+           case KEY_3: if((t->condition&7)==0) {servis=1; setup=0; displmode=0; waitset=20; waitkey=WAITCOUNT; beeper_ON(DURATION*2);} break;
+           case KEY_6: psword=0; displmode=0; buf=0; t->condition &=0xE7; servis=0; setup=0; waitkey=WAITCOUNT; beeper_ON(DURATION*10); break;// РЕЖИМЫ ОТКЛЮЧЕНЫ
+           case KEY_6_5: if((t->condition&7)==0){t->condition|=0x01; t->condition&=0x7F; beeper_ON(DURATION*2);}
+                         else {t->condition&=0x60; beeper_ON(DURATION*5);} countsec=-5; ok0=0; ok1=0; psword=0; EEPSAVE=1; waitset=1;
+                break;
+           case KEY_7_5: if((t->condition&0x1F)==0) t->condition|=0x80; countsec=-5; psword=0; EEPSAVE=1; waitset=1; break; //ВКЛЮЧИТЬ Поворот лотков при ОТКЛЮЧЕННОЙ камере !!!
+           case KEY_8_5: if(t->condition&0x80) t->condition&=0x7F; countsec=-5; psword=0; EEPSAVE=1; waitset=1; break;      //ОТКЛЮЧИТЬ Поворот лотков при ОТКЛЮЧЕННОЙ камере !!!
+           case KEY_4_5_6_7: displmode=-10; break;
+          }
+       }
+    else                      // режим ПО УМОЛЧАНИЮ
+       {
+        switch (keykod)
+          {
+           case KEY_3:   buf++; psword++; waitset=5; break;
+           case KEY_4:   buf++; buf <<= 1; psword++; waitset=5; break;
+           case KEY_5:   ++displmode; displmode&=3; waitset=20; break;
+           case KEY_6:   psword=0; displmode=0; buf=0; t->condition &=0xE7; servis=0; waitkey=WAITCOUNT; beeper_ON(DURATION*10); break;// РЕЖИМЫ ОТКЛЮЧЕНЫ
+           case KEY_7:   disableBeep=10; alarmErr = abs(t->spT[0]-pvT0); break;      // тревога отключена на 10 мин.
+           case KEY_8:   disableBeep=10; alarmErr = abs(t->spT[0]-pvT0); break;      // тревога отключена на 10 мин.
+           case KEY_7_8: t->condition |=0x08; beeper_ON(DURATION*2); break;              // ГОРИЗОНТ ВКЛЮЧЕН !!
+           case KEY_8_6: if((t->condition&7)==1){t->condition |=0x02; beeper_ON(DURATION*2);} break; // ВКЛЮЧИТЬ Режим "подгототка к ОХЛАЖДЕНИЮ"
+//           case KEY_7_6: pvTimer=1; rotate_trays(); break;                         // принудительный поворот
+          };
+       };
+//-----------------------------------------------------------------------------------------------------------------------------------------------------
+     if(psword==4) {if(buf==12) {psword=10; waitset=20; beeper_ON(DURATION*5);} else psword=0;}   // верный пароль -> KEY_3+KEY_4+KEY_3+KEY_4 ограничим время хранения пароля (20 сек.)!     
+//-----------------------------------------------------------------------------------------------------------------------------------------------------
+  }
+}
+
