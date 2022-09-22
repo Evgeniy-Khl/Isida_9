@@ -5,7 +5,7 @@
   ******************************************************************************
   * @attention
   *
-  * <h2><center>&copy; Copyright (c) 2022 STMicroelectronics.
+  * <h2><center>&copy; Copyright (c) 2020 STMicroelectronics.
   * All rights reserved.</center></h2>
   *
   * This software component is licensed by ST under Ultimate Liberty license
@@ -24,12 +24,8 @@ FATFS USERFatFS;    /* File system object for USER logical drive */
 FIL USERFile;       /* File object for USER */
 
 /* USER CODE BEGIN Variables */
-/* defines for the CS PIN */
-#define SD_CS_GPIO_Port GPIOA
-#define SD_CS_Pin GPIO_PIN_4
-
-/* manage your SPI handler below */
-extern SPI_HandleTypeDef hspi1; 
+extern MY_DateTypeDef sDate;
+extern MY_TimeTypeDef sTime;
 /* USER CODE END Variables */    
 
 void MX_FATFS_Init(void) 
@@ -50,7 +46,20 @@ void MX_FATFS_Init(void)
 DWORD get_fattime(void)
 {
   /* USER CODE BEGIN get_fattime */
-  return 0;
+//  sTime.Hours, sTime.Minutes, sTime.Seconds,sDate.Date,sDate.Month,sDate.Year
+  uint32_t fattime;
+  fattime = sDate.Year+20;
+  fattime <<= 4;
+  fattime |= sDate.Month;
+  fattime <<= 5;
+  fattime |= sDate.Date;
+  fattime <<= 5;
+  fattime |= sTime.Hours;
+  fattime <<= 6;
+  fattime |= sTime.Minutes;
+  fattime <<= 5;
+  fattime |= sTime.Seconds/2;
+  return fattime;
   /* USER CODE END get_fattime */  
 }
 

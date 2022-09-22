@@ -6,7 +6,7 @@
   ******************************************************************************
   * @attention
   *
-  * <h2><center>&copy; Copyright (c) 2022 STMicroelectronics.
+  * <h2><center>&copy; Copyright (c) 2020 STMicroelectronics.
   * All rights reserved.</center></h2>
   *
   * This software component is licensed by ST under Ultimate Liberty license
@@ -36,10 +36,16 @@
 /* Includes ------------------------------------------------------------------*/
 #include <string.h>
 #include "ff_gen_drv.h"
-
+#include "sd.h"
+//#include "tft_proc.h"
+//#include "ili9341_touch.h"
 /* Private typedef -----------------------------------------------------------*/
 /* Private define ------------------------------------------------------------*/
-
+//extern UART_HandleTypeDef huart1;
+//extern char buffTFT[60];
+//extern uint8_t Y_txt, X_left;
+//extern uint16_t fillScreen;
+extern sd_info_ptr sdinfo;
 /* Private variables ---------------------------------------------------------*/
 /* Disk status */
 static volatile DSTATUS Stat = STA_NOINIT;
@@ -83,6 +89,11 @@ DSTATUS USER_initialize (
 {
   /* USER CODE BEGIN INIT */
     Stat = STA_NOINIT;
+//    ILI9341_WriteString(X_left, Y_txt, "USER_initialize", Font_7x10, ILI9341_YELLOW, fillScreen);
+//    HAL_Delay(2000);
+//    Y_txt = Y_txt+10+2;
+//		SD_PowerOn();
+		if(sd_ini()==0) {Stat &= ~STA_NOINIT;} //—бросим статус STA_NOINIT
     return Stat;
   /* USER CODE END INIT */
 }
@@ -97,7 +108,9 @@ DSTATUS USER_status (
 )
 {
   /* USER CODE BEGIN STATUS */
-    Stat = STA_NOINIT;
+//    ILI9341_WriteString(X_left, Y_txt, "USER_status", Font_7x10, ILI9341_WHITE, fillScreen);
+//    Y_txt = Y_txt+10+2;
+		if (pdrv) return STA_NOINIT;
     return Stat;
   /* USER CODE END STATUS */
 }
@@ -118,8 +131,23 @@ DRESULT USER_read (
 )
 {
   /* USER CODE BEGIN READ */
-//    return RES_OK;
-    return SD_disk_read(pdrv, buff, sector, count);
+//    ILI9341_WriteString(X_left, Y_txt, "USER_read", Font_7x10, ILI9341_WHITE, fillScreen);
+//    Y_txt = Y_txt+10+2;
+//		sprintf(buffTFT,"sector: %lu; count: %d",sector, count);
+//    ILI9341_WriteString(X_left, Y_txt, buffTFT, Font_7x10, ILI9341_WHITE, fillScreen);
+//    Y_txt = Y_txt+10+2;
+		if (pdrv || !count) return RES_PARERR;
+		if (Stat & STA_NOINIT) return RES_NOTRDY;
+		if (!(sdinfo.type & 4)) sector *= 512; /* Convert to byte address if needed */
+		if (count == 1){ /* Single block read */
+			SD_Read_Block(buff,sector); //—читаем блок в буфер
+			count = 0;
+		}
+		else {/* Multiple block read */
+		  SPI_Release();
+		  return count ? RES_ERROR : RES_OK;
+		}
+    return RES_OK;
   /* USER CODE END READ */
 }
 
@@ -141,8 +169,25 @@ DRESULT USER_write (
 { 
   /* USER CODE BEGIN WRITE */
   /* USER CODE HERE */
-//    return RES_OK;
-    return SD_disk_write(pdrv, buff, sector, count);
+//    ILI9341_WriteString(X_left, Y_txt, "USER_write", Font_7x10, ILI9341_WHITE, fillScreen);
+//    Y_txt = Y_txt+10+2;
+//		sprintf(buffTFT,"sector: %lu",sector);
+//    ILI9341_WriteString(X_left, Y_txt, buffTFT, Font_7x10, ILI9341_WHITE, fillScreen);
+//    Y_txt = Y_txt+10+2;
+	  if (pdrv || !count) return RES_PARERR;
+		if (Stat & STA_NOINIT) return RES_NOTRDY;
+		if (Stat & STA_PROTECT) return RES_WRPRT;
+		if (!(sdinfo.type & 4)) sector *= 512; /* Convert to byte address if needed */
+		if (count == 1) /* Single block read */
+		{
+			SD_Write_Block((BYTE*)buff,sector); //—читаем блок в буфер
+			count = 0;
+		}
+		else /* Multiple block read */
+		{
+		}
+		SPI_Release();
+		return count ? RES_ERROR : RES_OK;
   /* USER CODE END WRITE */
 }
 #endif /* _USE_WRITE == 1 */
@@ -162,7 +207,30 @@ DRESULT USER_ioctl (
 )
 {
   /* USER CODE BEGIN IOCTL */
-    DRESULT res = RES_ERROR;
+    DRESULT res;
+//    ILI9341_WriteString(X_left, Y_txt, "USER_ioctl", Font_7x10, ILI9341_WHITE, fillScreen);
+//    Y_txt = Y_txt+10+2;
+//		sprintf(buffTFT,"cmd: %d",cmd);
+//    ILI9341_WriteString(X_left, Y_txt, buffTFT, Font_7x10, ILI9341_WHITE, fillScreen);
+//    Y_txt = Y_txt+10+2;
+		if (pdrv) return RES_PARERR;
+		if (Stat & STA_NOINIT) return RES_NOTRDY;
+		res = RES_ERROR;
+		switch (cmd)
+		{
+			case CTRL_SYNC : /* Flush dirty buffer if present */
+				SS_SD_SELECT();
+				if (SPI_wait_ready() == 0xFF)
+				res = RES_OK;
+				break;
+			case GET_SECTOR_SIZE : /* Get sectors on the disk (WORD) */
+				*(WORD*)buff = 512;
+				res = RES_OK;
+				break;
+			default:
+				res = RES_PARERR;
+		}
+		SPI_Release();
     return res;
   /* USER CODE END IOCTL */
 }

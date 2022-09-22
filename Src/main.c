@@ -20,9 +20,11 @@
 
 /* Includes ------------------------------------------------------------------*/
 #include "main.h"
+#include "fatfs.h"
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
+#include <stdlib.h>
 #include "proc.h"
 #include "module.h"
 #include "ds18b20.h"
@@ -62,6 +64,8 @@ TIM_HandleTypeDef htim4;
 UART_HandleTypeDef huart1;
 
 /* USER CODE BEGIN PV */
+MY_TimeTypeDef sTime;
+MY_DateTypeDef sDate;
 volatile uint16_t adc[2] = {0,0};      // у нас два канала АЦП, поэтому массив из двух элементов
 volatile uint8_t flag = 0;             // флаг окончания преобразования АЦП
 char fileName[15]={0}, buffile[50], txt[10];
@@ -244,6 +248,7 @@ int main(void)
   MX_SPI2_Init();
   MX_USART1_UART_Init();
   MX_SPI1_Init();
+  MX_FATFS_Init();
   /* USER CODE BEGIN 2 */
   set_Output();
 	HAL_TIM_Base_Start_IT(&htim4);	/* ------  таймер 1Гц.   период 1000 мс.  ----*/
@@ -265,7 +270,7 @@ int main(void)
   for(int8_t i=0;i<8;i++) {setChar(i,SIMBL_BL); PointOn(i);}// "BL"+точки
   SendDataTM1638();
   SendCmdTM1638(0x8F);      // Transmit the display control command to set maximum brightness (8FH)
-  
+  setDataAndTime(0x22,0x09,0x01,0x04,0x00,0x00,0x00);//2022,MONTH_SEPTEMBER,01  WEEKDAY_THURSDAY  00:00:00
   tmpbyte = eep_read(0x0000, eep.data);
   if(tmpbyte){              // бесконечный цикл НЕИСПРАВНА EEPROM "EEP-x" (HAL_ERROR=0x01U, HAL_BUSY=0x02U, HAL_TIMEOUT=0x03U)
       while(ds18b20_amount == 0){

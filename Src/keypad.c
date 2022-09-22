@@ -1,4 +1,5 @@
 #include "main.h"
+#include <stdlib.h>
 #include "global.h"   // здесь определена структура eeprom и структура rampv
 #include "keypad.h"
 #include "proc.h"

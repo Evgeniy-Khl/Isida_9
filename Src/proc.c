@@ -9,6 +9,8 @@ const float A1=1.6, A2=0.64, A3=0.04;  // порядок a=0.8 (A1=2a; A2=a^2; A3=(1-a)
 const float VREF = 3.3f;
 
 uint8_t pvAeration;
+extern MY_DateTypeDef sDate;
+extern MY_TimeTypeDef sTime;
 extern SPI_HandleTypeDef hspi2;
 extern int8_t countsec;
 extern uint8_t ok0, ok1, ext[], cmdmodule, modules, disableBeep;
@@ -117,5 +119,18 @@ void set_Output(void){
   HAL_SPI_Transmit(&hspi2,(uint8_t*)&portOut, 1, 5000);
   RCK_H();
   RCK_L();
+}
+
+//----------- Функція встановлення дати і часу ----------------------------------------
+void setDataAndTime(uint8_t year, uint8_t month, uint8_t day, uint8_t weekday, 
+             uint8_t hour, uint8_t min,  uint8_t sec){
+    /**Initialize RTC and set the Time and Date**/
+  sTime.Hours = hour;
+  sTime.Minutes = min;
+  sTime.Seconds = sec;
+  sDate.WeekDay = weekday;
+  sDate.Month = month;
+  sDate.Date = day;
+  sDate.Year = year;
 }
 

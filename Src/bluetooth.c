@@ -63,7 +63,7 @@ void bluetoothCallback(void){
 uint8_t bluetoothName(void){
  char str1[15];
  uint8_t sizeX;
-  sprintf(str1,"AT+NAMEISIDA02");//\r\n
+  sprintf(str1,"AT+NAMEISIDA02\r\n");//
   sizeX=strlen(str1);
   bluetoothData.ind = 0;
   ret_stat = HAL_UART_Transmit(&huart1, (uint8_t*)str1, sizeX, 0x1000);  // Передача команды str=[AT+NAME=<>]

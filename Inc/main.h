@@ -32,8 +32,6 @@ extern "C" {
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
-#include "fonts.h"
-#include "ssd1306.h"
 #include "TM1638.h"
 #include "i2c.h"
 #include <string.h>
@@ -246,6 +244,21 @@ union Byte {
 #define FLAP		portOut.bitfield.a2  // Заслонка воздухообмена
 #define EXT2		portOut.bitfield.a3  // Вспомогательный канал
 #define TURN		portOut.bitfield.a4  // Поворот лотков
+
+typedef struct
+{
+  uint8_t Hours;            /*!< Specifies the RTC Time Hour. This parameter must be a number between Min_Data = 0 and Max_Data = 23 */
+  uint8_t Minutes;          /*!< Specifies the RTC Time Minutes. This parameter must be a number between Min_Data = 0 and Max_Data = 59 */
+  uint8_t Seconds;          /*!< Specifies the RTC Time Seconds. This parameter must be a number between Min_Data = 0 and Max_Data = 59 */
+} MY_TimeTypeDef;
+
+typedef struct
+{
+  uint8_t WeekDay;  /*!< Specifies the RTC Date WeekDay (not necessary for HAL_RTC_SetDate). This parameter can be a value of @ref RTC_WeekDay_Definitions */
+  uint8_t Month;    /*!< Specifies the RTC Date Month (in BCD format). This parameter can be a value of @ref RTC_Month_Date_Definitions */
+  uint8_t Date;     /*!< Specifies the RTC Date. This parameter must be a number between Min_Data = 1 and Max_Data = 31 */
+  uint8_t Year;     /*!< Specifies the RTC Date Year.  This parameter must be a number between Min_Data = 0 and Max_Data = 99 */
+} MY_DateTypeDef;
 
 /* USER CODE END Private defines */
 
