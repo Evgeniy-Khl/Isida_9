@@ -6,7 +6,7 @@
 #include "global.h"   // здесь определена структура eeprom
 #include "am2301.h"
 #include "proc.h"
-//#include "FatFsAPI.h"
+#include "FatFsAPI.h"
 
 extern uint8_t ds18b20_amount, modules, pvTimer, pvAeration, topUser, card;
 extern int16_t humAdc;
@@ -77,15 +77,14 @@ void init(struct eeprom *t, struct rampv *ram){
     }
   }
   else {setChar(3,SIMBL_o); setChar(4,i/10); setChar(5,i%10);} // "o00"}
+  
+//------------------ Инициализация SD карты -----------------------------------------------------------------------------------
+  i = My_LinkDriver();     // инициализация SD карты
+  setChar(3,SIMBL_c); setChar(4,i/10); setChar(5,i); // "c00"
+  if(i) card = 0; else card = 1;
+//=====
   setChar(6,2+0xA); setChar(7,DISPL_o);  // "2o"
   SendDataTM1638();
-//------------------ Инициализация SD карты -----------------------------------------------------------------------------------
-//  i = My_LinkDriver();     // инициализация SD карты
-//  setChar(3,SIMBL_c); setChar(4,SIMBL_d); setChar(5,i); // "Sd0"
-//  if(i) card = 0; else card = 1;
-//  setChar(6,2+0xA); setChar(7,DISPL_o);  // "2o"
-//  SendDataTM1638();
-//=====
   while (i<2){
     HAL_Delay(200);
     HAL_GPIO_WritePin(Beeper_GPIO_Port, Beeper_Pin, GPIO_PIN_SET);  // Beeper On

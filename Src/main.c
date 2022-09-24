@@ -293,7 +293,7 @@ int main(void)
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
   getButton = waitkey/4;
-  setChar(6,3+0xA); setChar(7,DISPL_o);  // "2o"
+  setChar(6,3+0xA); setChar(7,DISPL_o);  // "3o"
   SendDataTM1638();
   HAL_Delay(1000);
 	while (1)
@@ -303,10 +303,9 @@ int main(void)
   /* ------------------------------------------- BEGIN таймер TIM3 6 √ц. ----------------------------------------------------------------------- */
 //      if (getButton>waitkey/4) checkkey(&eep.sp, upv.pv.pvT[0]);  // клавиатура
   /* -------------------------------------------- END таймер TIM3 6 √ц. ------------------------------------------------------------------------ */
-//      HAL_GPIO_TogglePin(LED_GPIO_Port, LED_Pin);  // LED On/Off
+
   /* ------------------------------------------- BEGIN таймер TIM4 1 √ц. ----------------------------------------------------------------------- */
       if(CHECK){   // ------- нова€ секунда --------------------------------------------------------------
-//        HAL_GPIO_TogglePin(LED_GPIO_Port, LED_Pin);  // LED On/Off
         CHECK=0; DISPLAY=1; ALARM=0; upv.pv.errors=0; upv.pv.warning=0; upv.pv.pvTmrCount = countsec;
         HAL_ADC_Start_DMA(&hadc1, (uint32_t*)&adc, 2);
         while(flag==0);
