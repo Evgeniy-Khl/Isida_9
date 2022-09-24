@@ -235,7 +235,7 @@ void TIM3_IRQHandler(void)
   /* USER CODE END TIM3_IRQn 0 */
   HAL_TIM_IRQHandler(&htim3);
   /* USER CODE BEGIN TIM3_IRQn 1 */
-//  HAL_GPIO_TogglePin(LED2_GPIO_Port, LED2_Pin);
+  HAL_GPIO_TogglePin(LED_GPIO_Port, LED_Pin);
   ++getButton;
   /* USER CODE END TIM3_IRQn 1 */
 }

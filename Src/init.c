@@ -93,7 +93,7 @@ void init(struct eeprom *t, struct rampv *ram){
     HAL_GPIO_WritePin(Beeper_GPIO_Port, Beeper_Pin, GPIO_PIN_RESET);  // Beeper Off
     i++;
   }
-  HAL_Delay(2000);
+  HAL_Delay(1000);
   
   ram->cellID  = t->identif;
   ram->pvTimer = t->timer[0];

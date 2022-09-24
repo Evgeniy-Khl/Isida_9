@@ -285,7 +285,7 @@ int main(void)
   tmpbyte = bluetoothName();
   setChar(0,SIMBL_B); setChar(1,SIMBL_MINUS); setChar(2,tmpbyte);  // "b-0"
   SendDataTM1638(); 
-//  HAL_Delay(500);
+
   init(&eep.sp, &upv.pv);   // инициализация
   temperature_check(&upv.pv);
   /* USER CODE END 2 */
@@ -293,19 +293,20 @@ int main(void)
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
   getButton = waitkey/4;
-  HAL_GPIO_WritePin(LED_GPIO_Port, LED_Pin, GPIO_PIN_RESET);  // LED On
+  setChar(6,3+0xA); setChar(7,DISPL_o);  // "2o"
+  SendDataTM1638();
+  HAL_Delay(1000);
 	while (1)
 	{
   //----------------------------------- Теперь будем опрашивать три канала на одном АЦП с помощью DMA… -------------------------------------------
 
   /* ------------------------------------------- BEGIN таймер TIM3 6 Гц. ----------------------------------------------------------------------- */
-      if (getButton>waitkey/4) checkkey(&eep.sp, upv.pv.pvT[0]);  // клавиатура
-//      if (getButton>waitkey/4) pushkey();
+//      if (getButton>waitkey/4) checkkey(&eep.sp, upv.pv.pvT[0]);  // клавиатура
   /* -------------------------------------------- END таймер TIM3 6 Гц. ------------------------------------------------------------------------ */
-     HAL_GPIO_TogglePin(LED_GPIO_Port, LED_Pin);  // LED On/Off
+//      HAL_GPIO_TogglePin(LED_GPIO_Port, LED_Pin);  // LED On/Off
   /* ------------------------------------------- BEGIN таймер TIM4 1 Гц. ----------------------------------------------------------------------- */
       if(CHECK){   // ------- новая секунда --------------------------------------------------------------
-        HAL_GPIO_TogglePin(LED_GPIO_Port, LED_Pin);  // LED On/Off
+//        HAL_GPIO_TogglePin(LED_GPIO_Port, LED_Pin);  // LED On/Off
         CHECK=0; DISPLAY=1; ALARM=0; upv.pv.errors=0; upv.pv.warning=0; upv.pv.pvTmrCount = countsec;
         HAL_ADC_Start_DMA(&hadc1, (uint32_t*)&adc, 2);
         while(flag==0);
