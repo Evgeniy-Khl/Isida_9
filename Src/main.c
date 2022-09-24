@@ -101,7 +101,7 @@ ext[3] модуль заслонок
 */
 int16_t pwTriac0, pwTriac1, pulsPeriod, beepOn, alarmErr; 
 uint16_t currAdc, humAdc, statPw[2]; 
-uint32_t summCurr=0, summPower=0;
+uint32_t summCurr=0, summPower=0, UnixTime;
 /* ----------------------------- BEGIN point value -------------------------------------- */
 union pointvalue{
   uint8_t pvdata[30];
@@ -271,6 +271,8 @@ int main(void)
   SendDataTM1638();
   SendCmdTM1638(0x8F);      // Transmit the display control command to set maximum brightness (8FH)
   setDataAndTime(0x22,0x09,0x01,0x04,0x00,0x00,0x00);//2022,MONTH_SEPTEMBER,01  WEEKDAY_THURSDAY  00:00:00
+  sprintf(fileName,"%02u_%02u_%02u.txt",sDate.Year,sDate.Month,sDate.Date);
+//  UnixTime = colodarToCounter(); //  персчет в UnixTime
   tmpbyte = eep_read(0x0000, eep.data);
   if(tmpbyte){              // бесконечный цикл НЕИСПРАВНА EEPROM "EEP-x" (HAL_ERROR=0x01U, HAL_BUSY=0x02U, HAL_TIMEOUT=0x03U)
       while(ds18b20_amount == 0){
