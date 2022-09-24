@@ -272,7 +272,7 @@ int main(void)
   for(int8_t i=0;i<8;i++) {setChar(i,SIMBL_BL); PointOn(i);}// "BL"+точки
   SendDataTM1638();
   SendCmdTM1638(0x8F);      // Transmit the display control command to set maximum brightness (8FH)
-  setDataAndTime(0x22,0x09,0x01,0x04,0x00,0x00,0x00);//2022,MONTH_SEPTEMBER,01  WEEKDAY_THURSDAY  00:00:00
+  setDataAndTime(22,9,1,4,0,0,0);//2022,MONTH_SEPTEMBER,01,WEEKDAY_THURSDAY,00:00:00
   sprintf(fileName,"%02u_%02u_%02u.txt",sDate.Year,sDate.Month,sDate.Date);
   UnixTime = colodarToCounter(); //  персчет в UnixTime
   tmpbyte = eep_read(0x0000, eep.data);
@@ -310,7 +310,7 @@ int main(void)
 
   /* ------------------------------------------- BEGIN таймер TIM4 1 Гц. ----------------------------------------------------------------------- */
       if(CHECK){   // ------- новая секунда --------------------------------------------------------------
-        CHECK=0; DISPLAY=1; ALARM=0; upv.pv.errors=0; upv.pv.warning=0; upv.pv.pvTmrCount = countsec;
+        CHECK=0; DISPLAY=1; ALARM=0; upv.pv.errors=0; upv.pv.warning=0; upv.pv.pvTmrCount = sTime.Seconds = countsec;
         HAL_ADC_Start_DMA(&hadc1, (uint32_t*)&adc, 2);
         while(flag==0);
         flag = 0;
@@ -425,8 +425,8 @@ int main(void)
             int16_t newErr = abs(eep.sp.spT[0]-upv.pv.pvT[0]);
             if((upv.pv.warning & 3)&&(newErr-alarmErr)>2) disableBeep=0;  // если при блокироке сирены продолжает увеличиватся ошибка сброс блокировки
             if(countsec>59){
-              countmin++;  countsec=0; if (disableBeep) disableBeep--;
-              if(card) SD_write(fileName, p_eeprom, p_rampv); else card = My_LinkDriver();  // запись на SD
+              sTime.Minutes = ++countmin; sTime.Seconds = countsec=0; if (disableBeep) disableBeep--;
+              if(card) SD_write(fileName, p_eeprom, p_rampv); else card = My_LinkDriver();  // запись на SD если КАМЕРА ВКЛЮЧЕНА в работу
               if(!(eep.sp.condition&0x18)) rotate_trays(eep.sp.timer[0], eep.sp.timer[1], &upv.pv);  // выполняется только если Камера ВКЛ.
               if(upv.pv.pvCO2[0]>0) CO2_check(eep.sp.spCO2, eep.sp.spCO2, upv.pv.pvCO2[0]); // Проверка концентрации СО2
               else if(eep.sp.air[1]>0) aeration_check(eep.sp.air[0], eep.sp.air[1]);    // Проветривание выполняется только если air[1]>0
@@ -437,7 +437,7 @@ int main(void)
               summPower += summCurr/60;         // суммируем в мВт.
               summCurr = 0;
               if(countmin>59){
-                countmin = 0;
+                sTime.Minutes = countmin = 0; sTime.Hours++;
                 eep.sp.EnergyMeter += (summPower/100);// суммируем в Вт.
                 summPower = 0;
                 EEPSAVE=1; waitset=1;
@@ -461,7 +461,11 @@ int main(void)
             else {
                upv.pv.power=OFF; portOut.value &= 0x10; upv.pv.pvFlap=FLAPCLOSE; if(modules&8) chkflap(DATAREAD, &upv.pv.pvFlap); VENTIL = OFF;
                if(currAdc>1000){upv.pv.errors|=0x04;}   // если сила тока > 1000 mV ПРОБОЙ СИМИСТОРА!
-               if(countsec>59){countsec=0; if(eep.sp.condition&0x80) rotate_trays(eep.sp.timer[0], eep.sp.timer[1], &upv.pv);} // Поворот лотков при ОТКЛЮЧЕННОЙ камере
+               if(countsec>59){
+                sTime.Minutes = ++countmin; sTime.Seconds = countsec=0;// ???????????????????????????????
+                if(card) SD_write(fileName, p_eeprom, p_rampv); else card = My_LinkDriver();  // ????????????????????????????????????????????
+                if(eep.sp.condition&0x80) rotate_trays(eep.sp.timer[0], eep.sp.timer[1], &upv.pv); // Поворот лотков при ОТКЛЮЧЕННОЙ камере
+               }
   //--------------------------------------------------------------------------------------------------------------------------------------------
             }
         }
@@ -471,8 +475,6 @@ int main(void)
         if(TURN && eep.sp.timer[1]){if(--upv.pv.pvTimer==0) { upv.pv.pvTimer=eep.sp.timer[0]; TURN = OFF;}} // только при sp[1].timer>0 -> асиметричный режим
         // ---------------------------------------------------------------------------------------------------------------------------------------------------
         if(HAL_GPIO_ReadPin(Bluetooth_STATE_GPIO_Port, Bluetooth_STATE_Pin)){ // если есть подключение по Bluetooth
-          HAL_GPIO_TogglePin(LED5_GPIO_Port, LED5_Pin);//????????????????????????????????????????????????????????????
-//          HAL_GPIO_WritePin(LED2_GPIO_Port, LED2_Pin, GPIO_PIN_SET);  // LED Off
           HAL_UART_Transmit(&huart1,(uint8_t*)upv.pvdata,30,0x1000);
           HAL_UART_Transmit(&huart1,(uint8_t*)eep.data,50,0x1000);
 //          for(tmpbyte=0;tmpbyte<60;tmpbyte++){bluetoothData.buf[tmpbyte]=tmpbyte;}

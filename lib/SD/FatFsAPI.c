@@ -39,10 +39,10 @@ uint8_t My_LinkDriver(void){
         // если файла нет то ...
         item = f_open(&MyFile, fileName, FA_CREATE_NEW|FA_WRITE);  // Пытаемся создать файл!
         if(item==FR_OK){// формируем первую строку...
-          sprintf(buffile,"timeStamp;");
-          for(item=0; item<ds18b20_amount; item++){sprintf(txt,"t%u;",item+1); strcat(buffile,txt);}
-          for(item=0; item<MAX_SET; item++){sprintf(txt,"set%u;",item+1); strcat(buffile,txt);}
-          strcat(txt,"\r\n"); strcat(buffile, txt);
+          sprintf(buffile,"timeStamp; T1; T2; RH\r\n");
+//          for(item=0; item<ds18b20_amount; item++){sprintf(txt,"t%u;",item+1); strcat(buffile,txt);}
+//          for(item=0; item<MAX_SET; item++){sprintf(txt,"set%u;",item+1); strcat(buffile,txt);}
+//          strcat(txt,"\r\n"); strcat(buffile, txt);
           for(item=0; item<LEN_BUFF; item++){if (buffile[item]==0) break;}
           item = f_write(&MyFile, buffile, item, (void*)&bwrt);
           if((bwrt == 0)||(item!=FR_OK))	cardOk = 0;       // Немогу записать заголовок!
@@ -67,21 +67,19 @@ uint8_t SD_write (const char* flname, struct eeprom *t, struct rampv *ram){
       uint32_t f_size = MyFile.fsize;
       item = f_lseek(&MyFile, f_size);
       if (item==FR_OK){
-        sprintf(buffile,"%u;", UnixTime);
-        for(i=0;i<MAX_SET;i++){
-          if (i<2) sprintf(txt,"%.1f;", (float)ram->pvT[i]/10);
-          else sprintf(txt,"%f;", (float)ram->pvRH/10);
-          strcat(buffile,txt);
-        }
-        for(i=0;i<MAX_SET;i++) {
-          if (i<2) sprintf(txt,"%.1f;", (float)t->spT[i]/10);
-          else sprintf(txt,"%f;", (float)t->spRH[1]/10);
-          strcat(buffile,txt);
-        }
-        strcat(buffile,"\r\n");
-        for(i=0;i<LEN_BUFF;i++) {
-          if (buffile[i]==0) break;
-        }
+        sprintf(buffile,"%u;  %.1f;   %.1f;   %.1f\r\n", UnixTime, (float)ram->pvT[0]/10, (float)ram->pvT[1]/10, (float)ram->pvRH/10);
+//        for(i=0;i<MAX_SET;i++){
+//          if (i<2) sprintf(txt,"%.1f;", (float)ram->pvT[i]/10);
+//          else sprintf(txt,"%f;", (float)ram->pvRH/10);
+//          strcat(buffile,txt);
+//        }
+//        for(i=0;i<MAX_SET;i++) {
+//          if (i<2) sprintf(txt,"%.1f;", (float)t->spT[i]/10);
+//          else sprintf(txt,"%f;", (float)t->spRH[1]/10);
+//          strcat(buffile,txt);
+//        }
+//        strcat(buffile,"\r\n");
+        for(i=0;i<LEN_BUFF;i++){if (buffile[i]==0) break;}
         item = f_write(&MyFile, buffile, i,(void*)&bwrt);
         if((bwrt==0)||(item!=FR_OK)) {card = 0; FATFS_UnLinkDriver(USERPath);}
       }

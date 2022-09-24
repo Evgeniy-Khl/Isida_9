@@ -103,9 +103,9 @@ void LedInverse(uint8_t pos, uint8_t led){
     DisplBuffer[pos] ^= led;
 }
 
-void LedOff(uint8_t pos){
+void LedOff(uint8_t pos, uint8_t led){
     pos <<= 1; pos+=2;
-    DisplBuffer[pos] = 0;
+    DisplBuffer[pos] &=~led;
 }
 
 void AllLedOff(void){

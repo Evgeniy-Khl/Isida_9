@@ -4,27 +4,29 @@
 #include "proc.h"
 
 extern int8_t displmode, countsec, disableBeep, keynum;
-extern uint8_t ok0, ok1, psword, setup, servis;
+extern uint8_t ok0, ok1, psword, setup, servis, card;
 extern int16_t buf, currAdc;
 
 //------- Светодиодная индикация --------------------------------------------------------- 
 void ledOut(uint8_t condition, uint8_t fuses){
  uint8_t led, i;
   led = portOut.value & 0x0F;       // 0b00001111
-  for(i=0;i<8;i++) LedOff(i);
+  for(i=0;i<8;i++) LedOff(i,3);
   i=0;
   while (i<4){
   	if(led & 1) LedOn(i,1);
   	led >>= 1; i++;
   }
-  if(TURN) LedOn(4,1); else LedOn(5,1); // лотки вверху; лотки внизу
+    LedOn(1,2);
+  if(TURN){LedOn(4,1); LedOff(5,1);} else{LedOn(5,1); LedOff(4,1);}// лотки вверху; лотки внизу
+  if(card) LedOn(3,2); else LedOff(3,2); // наличие / отсутствие SD карты
   if(condition&0x01) LedOn(7,1);        // ВКЛЮЧЕН
-  led = fuses;
-  i=0;
-  while (i<8){
-  	if(led & 1) LedOn(i,2);
-  	led >>= 1; i++;
-  }
+//  led = fuses;
+//  i=0;
+//  while (i<8){
+//  	if(led & 1) LedOn(i,2);
+//  	led >>= 1; i++;
+//  }
 }
 
 void displ_1(int16_t val, uint8_t comma){

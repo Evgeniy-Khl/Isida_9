@@ -15,7 +15,7 @@ void SendDataTM1638(void);
 void ReadKeyTM1638(void);
 void LedOn(uint8_t pos, uint8_t led);
 void LedInverse(uint8_t pos, uint8_t led);
-void LedOff(uint8_t pos);
+void LedOff(uint8_t pos, uint8_t led);
 void AllLedOff(void);
 void PointOn(uint8_t pos);
 void PointInverse(uint8_t pos);
