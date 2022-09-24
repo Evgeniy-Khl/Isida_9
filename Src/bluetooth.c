@@ -6,14 +6,14 @@ extern uint8_t waitset;
 extern HAL_StatusTypeDef ret_stat;
 
 void data_parse(struct eeprom *t){
-    //HAL_GPIO_WritePin(LED2_GPIO_Port, LED2_Pin, GPIO_PIN_RESET);  // LED On
-    HAL_GPIO_TogglePin(LED2_GPIO_Port, LED2_Pin);
+//    HAL_GPIO_WritePin(LED_GPIO_Port, LED_Pin, GPIO_PIN_RESET);  // LED On
+//    HAL_GPIO_TogglePin(LED_GPIO_Port, LED_Pin);
     switch (bluetoothData.buf[4]){
     	case 0x57: t->condition = bluetoothData.buf[6]; EEPSAVE=1; waitset=1; break;  // включить/отключить камеру, только поворот
     	case 0x37: memcpy(p_eeprom,&bluetoothData.buf[6],4); EEPSAVE=1; waitset=1; break;
-    	default: HAL_GPIO_TogglePin(LED2_GPIO_Port, LED2_Pin); HAL_Delay(500); HAL_GPIO_TogglePin(LED2_GPIO_Port, LED2_Pin); HAL_Delay(500);
-               HAL_GPIO_TogglePin(LED2_GPIO_Port, LED2_Pin); HAL_Delay(500); HAL_GPIO_TogglePin(LED2_GPIO_Port, LED2_Pin); HAL_Delay(500);
-    		break;
+//    	default: HAL_GPIO_TogglePin(LED2_GPIO_Port, LED2_Pin); HAL_Delay(500); HAL_GPIO_TogglePin(LED2_GPIO_Port, LED2_Pin); HAL_Delay(500);
+//               HAL_GPIO_TogglePin(LED2_GPIO_Port, LED2_Pin); HAL_Delay(500); HAL_GPIO_TogglePin(LED2_GPIO_Port, LED2_Pin); HAL_Delay(500);
+//    		break;
     }
 }
 

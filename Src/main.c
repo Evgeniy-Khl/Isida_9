@@ -255,7 +255,7 @@ int main(void)
 	HAL_TIM_Base_Start_IT(&htim3);	/* ------  таймер 6Гц.   период 166 мс.  ----*/
   HAL_ADCEx_Calibration_Start(&hadc1);            // калибровкa АЦП
   HAL_UART_Receive_IT(&huart1,(uint8_t*)bluetoothData.RXBuffer,2);
-  HAL_GPIO_WritePin(LED2_GPIO_Port, LED2_Pin, GPIO_PIN_SET);  // LED Off
+  HAL_GPIO_WritePin(LED_GPIO_Port, LED_Pin, GPIO_PIN_SET);  // LED Off
   //--------- ХОЛОСТОЕ ВЫПОЛНЕНИЕ при котором каналы распологаются правильно --------
   HAL_ADC_Start_DMA(&hadc1, (uint32_t*)&adc, 2);  // стартуем АЦП
   while(flag==0);
@@ -293,7 +293,7 @@ int main(void)
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
   getButton = waitkey/4;
-  HAL_GPIO_WritePin(LED2_GPIO_Port, LED2_Pin, GPIO_PIN_RESET);  // LED On
+  HAL_GPIO_WritePin(LED_GPIO_Port, LED_Pin, GPIO_PIN_RESET);  // LED On
 	while (1)
 	{
   //----------------------------------- Теперь будем опрашивать три канала на одном АЦП с помощью DMA… -------------------------------------------
@@ -302,10 +302,10 @@ int main(void)
       if (getButton>waitkey/4) checkkey(&eep.sp, upv.pv.pvT[0]);  // клавиатура
 //      if (getButton>waitkey/4) pushkey();
   /* -------------------------------------------- END таймер TIM3 6 Гц. ------------------------------------------------------------------------ */
-     HAL_GPIO_TogglePin(LED2_GPIO_Port, LED2_Pin);  // LED On/Off
+     HAL_GPIO_TogglePin(LED_GPIO_Port, LED_Pin);  // LED On/Off
   /* ------------------------------------------- BEGIN таймер TIM4 1 Гц. ----------------------------------------------------------------------- */
       if(CHECK){   // ------- новая секунда --------------------------------------------------------------
-        HAL_GPIO_TogglePin(LED2_GPIO_Port, LED2_Pin);  // LED On/Off
+        HAL_GPIO_TogglePin(LED_GPIO_Port, LED_Pin);  // LED On/Off
         CHECK=0; DISPLAY=1; ALARM=0; upv.pv.errors=0; upv.pv.warning=0; upv.pv.pvTmrCount = countsec;
         HAL_ADC_Start_DMA(&hadc1, (uint32_t*)&adc, 2);
         while(flag==0);
@@ -876,7 +876,7 @@ static void MX_GPIO_Init(void)
   __HAL_RCC_GPIOB_CLK_ENABLE();
 
   /*Configure GPIO pin Output Level */
-  HAL_GPIO_WritePin(LED2_GPIO_Port, LED2_Pin, GPIO_PIN_RESET);
+  HAL_GPIO_WritePin(LED_GPIO_Port, LED_Pin, GPIO_PIN_RESET);
 
   /*Configure GPIO pin Output Level */
   HAL_GPIO_WritePin(GPIOA, SD_CS_Pin|DE485_Pin|Beeper_Pin, GPIO_PIN_RESET);
@@ -884,12 +884,12 @@ static void MX_GPIO_Init(void)
   /*Configure GPIO pin Output Level */
   HAL_GPIO_WritePin(GPIOB, OUT_RCK_Pin|DISPL_STB_Pin|LED5_Pin, GPIO_PIN_RESET);
 
-  /*Configure GPIO pin : LED2_Pin */
-  GPIO_InitStruct.Pin = LED2_Pin;
+  /*Configure GPIO pin : LED_Pin */
+  GPIO_InitStruct.Pin = LED_Pin;
   GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
   GPIO_InitStruct.Pull = GPIO_PULLUP;
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_MEDIUM;
-  HAL_GPIO_Init(LED2_GPIO_Port, &GPIO_InitStruct);
+  HAL_GPIO_Init(LED_GPIO_Port, &GPIO_InitStruct);
 
   /*Configure GPIO pins : FUSE2_Pin FUSE3_Pin FUSE4_Pin FUSE5_Pin */
   GPIO_InitStruct.Pin = FUSE2_Pin|FUSE3_Pin|FUSE4_Pin|FUSE5_Pin;
