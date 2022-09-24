@@ -17,10 +17,10 @@ void ledOut(uint8_t condition, uint8_t fuses){
   	if(led & 1) LedOn(i,1);
   	led >>= 1; i++;
   }
-    LedOn(1,2);
+//    LedOn(1,2);
   if(TURN){LedOn(4,1); LedOff(5,1);} else{LedOn(5,1); LedOff(4,1);}// лотки вверху; лотки внизу
-  if(card) LedOn(3,2); else LedOff(3,2); // наличие / отсутствие SD карты
-  if(condition&0x01) LedOn(7,1);        // ВКЛЮЧЕН
+  if(card) LedOn(1,2); else LedOff(1,2); // наличие / отсутствие SD карты
+  if(condition&0x01) LedOn(7,1); else LedOn(3,1);        // ВКЛЮЧЕН
 //  led = fuses;
 //  i=0;
 //  while (i<8){
