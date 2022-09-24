@@ -58,40 +58,40 @@ uint8_t My_LinkDriver(void){
 }
 
   //write ----------------------------------------------------------------------------------------------------
-//uint8_t SD_write (const char* flname, struct eeprom *t, struct rampv *ram){
-// uint8_t i, item;
-//  item = f_mount(&SDFatFs,(const char*)USERPath,0);
-//  if(item==FR_OK){  // Монтируем SD карту!
-//    item = f_open(&MyFile, flname, FA_OPEN_EXISTING|FA_WRITE);
-//    if(item==FR_OK) {
-//      uint32_t f_size = MyFile.fsize;
-//      item = f_lseek(&MyFile, f_size);
-//      if (item==FR_OK){
-//        sprintf(buffile,"%u;", UnixTime);
-//        for(i=0;i<MAX_SET;i++){
-//          if (i<2) sprintf(txt,"%.1f;", (float)ram->pvT[i]/10);
-//          else sprintf(txt,"%f;", (float)ram->pvRH/10);
-//          strcat(buffile,txt);
-//        }
-//        for(i=0;i<MAX_SET;i++) {
-//          if (i<2) sprintf(txt,"%.1f;", (float)t->spT[i]/10);
-//          else sprintf(txt,"%f;", (float)t->spRH[1]/10);
-//          strcat(buffile,txt);
-//        }
-//        strcat(buffile,"\r\n");
-//        for(i=0;i<LEN_BUFF;i++) {
-//          if (buffile[i]==0) break;
-//        }
-//        item = f_write(&MyFile, buffile, i,(void*)&bwrt);
-//        if((bwrt==0)||(item!=FR_OK)) {card = 0; FATFS_UnLinkDriver(USERPath);}
-//      }
-//      else {card = 0; FATFS_UnLinkDriver(USERPath);}
-//      f_close(&MyFile);
-//      f_mount(NULL,(TCHAR const*)USERPath,0);
-////      if (displ_num==0) ILI9341_WriteString(X_left, Y_bottom - 22, " ЗАПИСАН ", Font_11x18, ILI9341_BLACK, ILI9341_GREEN);
-//    }
-//    else {card = 0; FATFS_UnLinkDriver(USERPath);}
-//  }
-//  return item;
-//}
+uint8_t SD_write (const char* flname, struct eeprom *t, struct rampv *ram){
+ uint8_t i, item;
+  item = f_mount(&SDFatFs,(const char*)USERPath,0);
+  if(item==FR_OK){  // Монтируем SD карту!
+    item = f_open(&MyFile, flname, FA_OPEN_EXISTING|FA_WRITE);
+    if(item==FR_OK) {
+      uint32_t f_size = MyFile.fsize;
+      item = f_lseek(&MyFile, f_size);
+      if (item==FR_OK){
+        sprintf(buffile,"%u;", UnixTime);
+        for(i=0;i<MAX_SET;i++){
+          if (i<2) sprintf(txt,"%.1f;", (float)ram->pvT[i]/10);
+          else sprintf(txt,"%f;", (float)ram->pvRH/10);
+          strcat(buffile,txt);
+        }
+        for(i=0;i<MAX_SET;i++) {
+          if (i<2) sprintf(txt,"%.1f;", (float)t->spT[i]/10);
+          else sprintf(txt,"%f;", (float)t->spRH[1]/10);
+          strcat(buffile,txt);
+        }
+        strcat(buffile,"\r\n");
+        for(i=0;i<LEN_BUFF;i++) {
+          if (buffile[i]==0) break;
+        }
+        item = f_write(&MyFile, buffile, i,(void*)&bwrt);
+        if((bwrt==0)||(item!=FR_OK)) {card = 0; FATFS_UnLinkDriver(USERPath);}
+      }
+      else {card = 0; FATFS_UnLinkDriver(USERPath);}
+      f_close(&MyFile);
+      f_mount(NULL,(TCHAR const*)USERPath,0);
+//      if (displ_num==0) ILI9341_WriteString(X_left, Y_bottom - 22, " ЗАПИСАН ", Font_11x18, ILI9341_BLACK, ILI9341_GREEN);
+    }
+    else {card = 0; FATFS_UnLinkDriver(USERPath);}
+  }
+  return item;
+}
 

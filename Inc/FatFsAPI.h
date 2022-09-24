@@ -9,8 +9,6 @@
 //--- _FS_NORTC	1  â "ffconf.h"
 
 uint8_t My_LinkDriver(void);
-DRESULT SD_write (const TCHAR* flname);
-DRESULT SD_dir (void);
 
 #endif // __FATFSAPI_H__
 

@@ -29,6 +29,7 @@
 #include "module.h"
 #include "ds18b20.h"
 #include "hih.h"
+#include "FatFsAPI.h"
 
 //#include "stm32f1xx_hal_adc.h"
 /* USER CODE END Includes */
@@ -181,6 +182,7 @@ void checkkey(struct eeprom *t, int16_t pvT0);
 //void pushkey(void);
 void chkdoor(struct eeprom *t, struct rampv *ram);
 void init(struct eeprom *t, struct rampv *ram);
+uint8_t SD_write (const char* flname, struct eeprom *t, struct rampv *ram);
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -272,7 +274,7 @@ int main(void)
   SendCmdTM1638(0x8F);      // Transmit the display control command to set maximum brightness (8FH)
   setDataAndTime(0x22,0x09,0x01,0x04,0x00,0x00,0x00);//2022,MONTH_SEPTEMBER,01  WEEKDAY_THURSDAY  00:00:00
   sprintf(fileName,"%02u_%02u_%02u.txt",sDate.Year,sDate.Month,sDate.Date);
-//  UnixTime = colodarToCounter(); //  персчет в UnixTime
+  UnixTime = colodarToCounter(); //  персчет в UnixTime
   tmpbyte = eep_read(0x0000, eep.data);
   if(tmpbyte){              // бесконечный цикл НЕИСПРАВНА EEPROM "EEP-x" (HAL_ERROR=0x01U, HAL_BUSY=0x02U, HAL_TIMEOUT=0x03U)
       while(ds18b20_amount == 0){
@@ -424,6 +426,7 @@ int main(void)
             if((upv.pv.warning & 3)&&(newErr-alarmErr)>2) disableBeep=0;  // если при блокироке сирены продолжает увеличиватся ошибка сброс блокировки
             if(countsec>59){
               countmin++;  countsec=0; if (disableBeep) disableBeep--;
+              if(card) SD_write(fileName, p_eeprom, p_rampv); else card = My_LinkDriver();  // запись на SD
               if(!(eep.sp.condition&0x18)) rotate_trays(eep.sp.timer[0], eep.sp.timer[1], &upv.pv);  // выполняется только если Камера ВКЛ.
               if(upv.pv.pvCO2[0]>0) CO2_check(eep.sp.spCO2, eep.sp.spCO2, upv.pv.pvCO2[0]); // Проверка концентрации СО2
               else if(eep.sp.air[1]>0) aeration_check(eep.sp.air[0], eep.sp.air[1]);    // Проветривание выполняется только если air[1]>0
