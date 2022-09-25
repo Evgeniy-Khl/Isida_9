@@ -66,11 +66,12 @@ void readBackupToDate(uint32_t bkp_reg){
 
 uint32_t colodarToCounter (void)
 {
-	uint8_t a;
+	uint8_t a, m;
 	int16_t y;
-	uint8_t m;
 	uint32_t time;
-
+  
+  HAL_RTC_GetTime(&hrtc, &sTime, RTC_FORMAT_BIN);
+  HAL_RTC_GetDate(&hrtc, &sDate, RTC_FORMAT_BIN);
 	a=((14-sDate.Month)/12);// 14-1=13/12=1
 	y=sDate.Year+6800-a;    // 1970+4800-1=6769
 	m=sDate.Month+(12*a)-3; // 1+12-3=10

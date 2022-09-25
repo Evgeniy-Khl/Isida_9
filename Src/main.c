@@ -287,13 +287,12 @@ int main(void)
   HAL_RTCEx_SetSecond_IT(&hrtc);          // Sets Interrupt for second
   HAL_RTC_GetTime(&hrtc, &sTime, RTC_FORMAT_BIN);
   HAL_RTC_GetDate(&hrtc, &sDate, RTC_FORMAT_BIN);
+  sprintf(fileName,"%02u_%02u_%02u.txt",sDate.Year,sDate.Month,sDate.Date);
   //******************************************************************************
   for(int8_t i=0;i<8;i++) {setChar(i,SIMBL_BL); PointOn(i); LedOn(i,3);}// "BL"+точки
   SendDataTM1638();
   SendCmdTM1638(0x8F);      // Transmit the display control command to set maximum brightness (8FH)
-//  setDataAndTime(22,9,1,4,0,0,0);//2022,MONTH_SEPTEMBER,01,WEEKDAY_THURSDAY,00:00:00
-  sprintf(fileName,"%02u_%02u_%02u.txt",sDate.Year,sDate.Month,sDate.Date);
-  UnixTime = colodarToCounter(); //  персчет в UnixTime
+  
   tmpbyte = eep_read(0x0000, eep.data);
   if(tmpbyte){              // бесконечный цикл НЕИСПРАВНА EEPROM "EEP-x" (HAL_ERROR=0x01U, HAL_BUSY=0x02U, HAL_TIMEOUT=0x03U)
       while(ds18b20_amount == 0){
@@ -481,7 +480,7 @@ int main(void)
                upv.pv.power=OFF; portOut.value &= 0x10; upv.pv.pvFlap=FLAPCLOSE; if(modules&8) chkflap(DATAREAD, &upv.pv.pvFlap); VENTIL = OFF;
                if(currAdc>1000){upv.pv.errors|=0x04;}   // если сила тока > 1000 mV ПРОБОЙ СИМИСТОРА!
                if(countsec>59){
-                ++countmin; countsec=0;// ???????????????????????????????
+                countsec=0;// ???????????????????????????????
                 if(card) SD_write(fileName, p_eeprom, p_rampv); else card = My_LinkDriver();  // ????????????????????????????????????????????
                 if(eep.sp.condition&0x80) rotate_trays(eep.sp.timer[0], eep.sp.timer[1], &upv.pv); // Поворот лотков при ОТКЛЮЧЕННОЙ камере
                }
