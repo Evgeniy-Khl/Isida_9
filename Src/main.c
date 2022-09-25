@@ -336,6 +336,12 @@ int main(void)
         humAdc  = adcTomV(adc[1]);      // Channel (Port B1) 9 в м¬.
         adc[0] = 0; adc[1] = 0;
 // ----------- ************************************** --------------------------------------------------
+        //-- перев≥римо чи настав ≥нший день --------------
+        if (((sTime.Hours+sTime.Minutes+sTime.Seconds)<=4)){  //??????????????????????????????????
+          writeDateToBackup(RTC_BKP_DR1);             // сохраним обновленную дату
+          sprintf(fileName,"%02u_%02u_%02u.txt",sDate.Year,sDate.Month,sDate.Date);
+        }
+        //-------------------------------------------------
         temperature_check(&upv.pv);
         if(AM2301) am2301_Read(&upv.pv, eep.sp.spRH[0]);
         else if(HIH5030){ 
@@ -933,7 +939,7 @@ static void MX_GPIO_Init(void)
   __HAL_RCC_GPIOB_CLK_ENABLE();
 
   /*Configure GPIO pin Output Level */
-  HAL_GPIO_WritePin(LED_GPIO_Port, LED_Pin, GPIO_PIN_RESET);
+  HAL_GPIO_WritePin(LED_GPIO_Port, LED_Pin, GPIO_PIN_SET);
 
   /*Configure GPIO pin Output Level */
   HAL_GPIO_WritePin(GPIOA, SD_CS_Pin|DE485_Pin|Beeper_Pin, GPIO_PIN_RESET);
@@ -944,8 +950,8 @@ static void MX_GPIO_Init(void)
   /*Configure GPIO pin : LED_Pin */
   GPIO_InitStruct.Pin = LED_Pin;
   GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
-  GPIO_InitStruct.Pull = GPIO_PULLUP;
-  GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_MEDIUM;
+  GPIO_InitStruct.Pull = GPIO_NOPULL;
+  GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
   HAL_GPIO_Init(LED_GPIO_Port, &GPIO_InitStruct);
 
   /*Configure GPIO pins : FUSE2_Pin FUSE3_Pin FUSE4_Pin FUSE5_Pin */
