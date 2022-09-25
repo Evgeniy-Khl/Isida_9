@@ -24,8 +24,8 @@ FATFS USERFatFS;    /* File system object for USER logical drive */
 FIL USERFile;       /* File object for USER */
 
 /* USER CODE BEGIN Variables */
-extern MY_DateTypeDef sDate;
-extern MY_TimeTypeDef sTime;
+extern RTC_DateTypeDef sDate;
+extern RTC_TimeTypeDef sTime;
 /* USER CODE END Variables */    
 
 void MX_FATFS_Init(void) 

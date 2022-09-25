@@ -30,6 +30,7 @@
 #include "ds18b20.h"
 #include "hih.h"
 #include "FatFsAPI.h"
+#include "rtc.h"
 
 //#include "stm32f1xx_hal_adc.h"
 /* USER CODE END Includes */
@@ -56,6 +57,8 @@ DMA_HandleTypeDef hdma_adc1;
 
 I2C_HandleTypeDef hi2c1;
 
+RTC_HandleTypeDef hrtc;
+
 SPI_HandleTypeDef hspi1;
 SPI_HandleTypeDef hspi2;
 
@@ -65,8 +68,8 @@ TIM_HandleTypeDef htim4;
 UART_HandleTypeDef huart1;
 
 /* USER CODE BEGIN PV */
-MY_TimeTypeDef sTime;
-MY_DateTypeDef sDate;
+RTC_TimeTypeDef sTime;
+RTC_DateTypeDef sDate;
 volatile uint16_t adc[2] = {0,0};      // у нас два канала АЦП, поэтому массив из двух элементов
 volatile uint8_t flag = 0;             // флаг окончания преобразования АЦП
 char fileName[15]={0}, buffile[50], txt[10];
@@ -196,6 +199,7 @@ static void MX_TIM4_Init(void);
 static void MX_SPI2_Init(void);
 static void MX_USART1_UART_Init(void);
 static void MX_SPI1_Init(void);
+static void MX_RTC_Init(void);
 /* USER CODE BEGIN PFP */
 
 /* USER CODE END PFP */
@@ -251,6 +255,7 @@ int main(void)
   MX_USART1_UART_Init();
   MX_SPI1_Init();
   MX_FATFS_Init();
+  MX_RTC_Init();
   /* USER CODE BEGIN 2 */
   set_Output();
 	HAL_TIM_Base_Start_IT(&htim4);	/* ------  таймер 1Гц.   период 1000 мс.  ----*/
@@ -268,11 +273,25 @@ int main(void)
   flag = 0;
   currAdc = adc[0]; humAdc = adc[1];
   adc[0] = 0; adc[1] = 0;
-
-  for(int8_t i=0;i<8;i++) {setChar(i,SIMBL_BL); PointOn(i);}// "BL"+точки
+  //******************************************************************************  
+  HAL_RTC_WaitForSynchro(&hrtc);                      // Після увімкнення, пробудження, скидання, потрібно викликати цю функцію  
+  if (HAL_RTCEx_BKUPRead(&hrtc,RTC_BKP_DR1) == 0){    // Перевіряємо чи дата вже була збережена чи ні
+   // як ні, то задамо якусь початкову дату і час
+    setDataAndTime(22,RTC_MONTH_SEPTEMBER,0x01,RTC_WEEKDAY_THURSDAY,0,0,0,RTC_FORMAT_BIN);//2022,MONTH_SEPTEMBER,01  WEEKDAY_THURSDAY  00:00:00
+    writeDateToBackup(RTC_BKP_DR1);       // і запишемо до backup регістрів дату
+  }
+  else {
+    readBackupToDate(RTC_BKP_DR1);        // выполним коррекцию даты
+    writeDateToBackup(RTC_BKP_DR1);       // сохраним обновленную дату
+  }
+  HAL_RTCEx_SetSecond_IT(&hrtc);          // Sets Interrupt for second
+  HAL_RTC_GetTime(&hrtc, &sTime, RTC_FORMAT_BIN);
+  HAL_RTC_GetDate(&hrtc, &sDate, RTC_FORMAT_BIN);
+  //******************************************************************************
+  for(int8_t i=0;i<8;i++) {setChar(i,SIMBL_BL); PointOn(i); LedOn(i,3);}// "BL"+точки
   SendDataTM1638();
   SendCmdTM1638(0x8F);      // Transmit the display control command to set maximum brightness (8FH)
-  setDataAndTime(22,9,1,4,0,0,0);//2022,MONTH_SEPTEMBER,01,WEEKDAY_THURSDAY,00:00:00
+//  setDataAndTime(22,9,1,4,0,0,0);//2022,MONTH_SEPTEMBER,01,WEEKDAY_THURSDAY,00:00:00
   sprintf(fileName,"%02u_%02u_%02u.txt",sDate.Year,sDate.Month,sDate.Date);
   UnixTime = colodarToCounter(); //  персчет в UnixTime
   tmpbyte = eep_read(0x0000, eep.data);
@@ -310,7 +329,7 @@ int main(void)
 
   /* ------------------------------------------- BEGIN таймер TIM4 1 Гц. ----------------------------------------------------------------------- */
       if(CHECK){   // ------- новая секунда --------------------------------------------------------------
-        CHECK=0; DISPLAY=1; ALARM=0; upv.pv.errors=0; upv.pv.warning=0; upv.pv.pvTmrCount = sTime.Seconds = countsec;
+        CHECK=0; DISPLAY=1; ALARM=0; upv.pv.errors=0; upv.pv.warning=0; upv.pv.pvTmrCount = countsec;
         HAL_ADC_Start_DMA(&hadc1, (uint32_t*)&adc, 2);
         while(flag==0);
         flag = 0;
@@ -425,7 +444,7 @@ int main(void)
             int16_t newErr = abs(eep.sp.spT[0]-upv.pv.pvT[0]);
             if((upv.pv.warning & 3)&&(newErr-alarmErr)>2) disableBeep=0;  // если при блокироке сирены продолжает увеличиватся ошибка сброс блокировки
             if(countsec>59){
-              sTime.Minutes = ++countmin; sTime.Seconds = countsec=0; if (disableBeep) disableBeep--;
+              ++countmin; countsec=0; if (disableBeep) disableBeep--;
               if(card) SD_write(fileName, p_eeprom, p_rampv); else card = My_LinkDriver();  // запись на SD если КАМЕРА ВКЛЮЧЕНА в работу
               if(!(eep.sp.condition&0x18)) rotate_trays(eep.sp.timer[0], eep.sp.timer[1], &upv.pv);  // выполняется только если Камера ВКЛ.
               if(upv.pv.pvCO2[0]>0) CO2_check(eep.sp.spCO2, eep.sp.spCO2, upv.pv.pvCO2[0]); // Проверка концентрации СО2
@@ -437,7 +456,7 @@ int main(void)
               summPower += summCurr/60;         // суммируем в мВт.
               summCurr = 0;
               if(countmin>59){
-                sTime.Minutes = countmin = 0; sTime.Hours++;
+                countmin = 0;
                 eep.sp.EnergyMeter += (summPower/100);// суммируем в Вт.
                 summPower = 0;
                 EEPSAVE=1; waitset=1;
@@ -462,7 +481,7 @@ int main(void)
                upv.pv.power=OFF; portOut.value &= 0x10; upv.pv.pvFlap=FLAPCLOSE; if(modules&8) chkflap(DATAREAD, &upv.pv.pvFlap); VENTIL = OFF;
                if(currAdc>1000){upv.pv.errors|=0x04;}   // если сила тока > 1000 mV ПРОБОЙ СИМИСТОРА!
                if(countsec>59){
-                sTime.Minutes = ++countmin; sTime.Seconds = countsec=0;// ???????????????????????????????
+                ++countmin; countsec=0;// ???????????????????????????????
                 if(card) SD_write(fileName, p_eeprom, p_rampv); else card = My_LinkDriver();  // ????????????????????????????????????????????
                 if(eep.sp.condition&0x80) rotate_trays(eep.sp.timer[0], eep.sp.timer[1], &upv.pv); // Поворот лотков при ОТКЛЮЧЕННОЙ камере
                }
@@ -533,10 +552,11 @@ void SystemClock_Config(void)
 
   /** Initializes the CPU, AHB and APB busses clocks 
   */
-  RCC_OscInitStruct.OscillatorType = RCC_OSCILLATORTYPE_HSE;
+  RCC_OscInitStruct.OscillatorType = RCC_OSCILLATORTYPE_LSI|RCC_OSCILLATORTYPE_HSE;
   RCC_OscInitStruct.HSEState = RCC_HSE_ON;
   RCC_OscInitStruct.HSEPredivValue = RCC_HSE_PREDIV_DIV1;
   RCC_OscInitStruct.HSIState = RCC_HSI_ON;
+  RCC_OscInitStruct.LSIState = RCC_LSI_ON;
   RCC_OscInitStruct.PLL.PLLState = RCC_PLL_ON;
   RCC_OscInitStruct.PLL.PLLSource = RCC_PLLSOURCE_HSE;
   RCC_OscInitStruct.PLL.PLLMUL = RCC_PLL_MUL9;
@@ -557,7 +577,8 @@ void SystemClock_Config(void)
   {
     Error_Handler();
   }
-  PeriphClkInit.PeriphClockSelection = RCC_PERIPHCLK_ADC;
+  PeriphClkInit.PeriphClockSelection = RCC_PERIPHCLK_RTC|RCC_PERIPHCLK_ADC;
+  PeriphClkInit.RTCClockSelection = RCC_RTCCLKSOURCE_LSI;
   PeriphClkInit.AdcClockSelection = RCC_ADCPCLK2_DIV6;
   if (HAL_RCCEx_PeriphCLKConfig(&PeriphClkInit) != HAL_OK)
   {
@@ -649,6 +670,36 @@ static void MX_I2C1_Init(void)
   /* USER CODE BEGIN I2C1_Init 2 */
 
   /* USER CODE END I2C1_Init 2 */
+
+}
+
+/**
+  * @brief RTC Initialization Function
+  * @param None
+  * @retval None
+  */
+static void MX_RTC_Init(void)
+{
+
+  /* USER CODE BEGIN RTC_Init 0 */
+
+  /* USER CODE END RTC_Init 0 */
+
+  /* USER CODE BEGIN RTC_Init 1 */
+
+  /* USER CODE END RTC_Init 1 */
+  /** Initialize RTC Only 
+  */
+  hrtc.Instance = RTC;
+  hrtc.Init.AsynchPrediv = RTC_AUTO_1_SECOND;
+  hrtc.Init.OutPut = RTC_OUTPUTSOURCE_ALARM;
+  if (HAL_RTC_Init(&hrtc) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  /* USER CODE BEGIN RTC_Init 2 */
+
+  /* USER CODE END RTC_Init 2 */
 
 }
 
@@ -889,7 +940,7 @@ static void MX_GPIO_Init(void)
   HAL_GPIO_WritePin(GPIOA, SD_CS_Pin|DE485_Pin|Beeper_Pin, GPIO_PIN_RESET);
 
   /*Configure GPIO pin Output Level */
-  HAL_GPIO_WritePin(GPIOB, OUT_RCK_Pin|DISPL_STB_Pin|LED5_Pin, GPIO_PIN_RESET);
+  HAL_GPIO_WritePin(GPIOB, OUT_RCK_Pin|DISPL_STB_Pin, GPIO_PIN_RESET);
 
   /*Configure GPIO pin : LED_Pin */
   GPIO_InitStruct.Pin = LED_Pin;
@@ -918,12 +969,12 @@ static void MX_GPIO_Init(void)
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_MEDIUM;
   HAL_GPIO_Init(OUT_RCK_GPIO_Port, &GPIO_InitStruct);
 
-  /*Configure GPIO pins : DISPL_STB_Pin LED5_Pin */
-  GPIO_InitStruct.Pin = DISPL_STB_Pin|LED5_Pin;
+  /*Configure GPIO pin : DISPL_STB_Pin */
+  GPIO_InitStruct.Pin = DISPL_STB_Pin;
   GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
   GPIO_InitStruct.Pull = GPIO_PULLUP;
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_MEDIUM;
-  HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
+  HAL_GPIO_Init(DISPL_STB_GPIO_Port, &GPIO_InitStruct);
 
   /*Configure GPIO pin : Bluetooth_STATE_Pin */
   GPIO_InitStruct.Pin = Bluetooth_STATE_Pin;
