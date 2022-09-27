@@ -57,7 +57,7 @@ uint8_t My_LinkDriver(void){
 
   //write ----------------------------------------------------------------------------------------------------
 uint8_t SD_write(const char* flname, struct eeprom *t, struct rampv *ram){
- uint8_t i, item;
+ uint8_t item;
   item = f_mount(&SDFatFs,(const char*)USERPath,0);
   if(item==FR_OK){  // Монтируем SD карту!
     item = f_open(&MyFile, flname, FA_OPEN_EXISTING|FA_WRITE);
@@ -65,10 +65,10 @@ uint8_t SD_write(const char* flname, struct eeprom *t, struct rampv *ram){
       uint32_t f_size = MyFile.fsize;
       item = f_lseek(&MyFile, f_size);
       if (item==FR_OK){
-        UnixTime = colodarToCounter(); //  персчет в UnixTime
+        UnixTime = timestamp(); //  персчет в UnixTime
         sprintf(buffile,"%u; %.1f; %.1f; %.1f\r\n", UnixTime, (float)ram->pvT[0]/10, (float)ram->pvT[1]/10, (float)ram->pvRH/10);
-        for(i=0;i<LEN_BUFF;i++){if (buffile[i]==0) break;}
-        item = f_write(&MyFile, buffile, i,(void*)&bwrt);
+        for(item=0;item<LEN_BUFF;item++){if (buffile[item]==0) break;}
+        item = f_write(&MyFile, buffile, item,(void*)&bwrt);
         if((bwrt==0)||(item!=FR_OK)) {card = 0; FATFS_UnLinkDriver(USERPath);}
       }
       else {card = 0; FATFS_UnLinkDriver(USERPath);}

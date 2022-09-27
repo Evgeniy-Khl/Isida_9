@@ -275,7 +275,7 @@ int main(void)
   adc[0] = 0; adc[1] = 0;
   //******************************************************************************  
   HAL_RTC_WaitForSynchro(&hrtc);                      // Після увімкнення, пробудження, скидання, потрібно викликати цю функцію  
-  if (HAL_RTCEx_BKUPRead(&hrtc,RTC_BKP_DR1) == 0){    // Перевіряємо чи дата вже була збережена чи ні
+  if(HAL_RTCEx_BKUPRead(&hrtc,RTC_BKP_DR1) == 0){     // Перевіряємо чи дата вже була збережена чи ні
    // як ні, то задамо якусь початкову дату і час
     setDataAndTime(22,RTC_MONTH_SEPTEMBER,0x01,RTC_WEEKDAY_THURSDAY,0,0,0,RTC_FORMAT_BIN);//2022,MONTH_SEPTEMBER,01  WEEKDAY_THURSDAY  00:00:00
     writeDateToBackup(RTC_BKP_DR1);       // і запишемо до backup регістрів дату
@@ -292,7 +292,7 @@ int main(void)
   for(int8_t i=0;i<8;i++) {setChar(i,SIMBL_BL); PointOn(i); LedOn(i,3);}// "BL"+точки
   SendDataTM1638();
   SendCmdTM1638(0x8F);      // Transmit the display control command to set maximum brightness (8FH)
-  
+  //---- проверка EEPROM ---------------
   tmpbyte = eep_read(0x0000, eep.data);
   if(tmpbyte){              // бесконечный цикл НЕИСПРАВНА EEPROM "EEP-x" (HAL_ERROR=0x01U, HAL_BUSY=0x02U, HAL_TIMEOUT=0x03U)
       while(ds18b20_amount == 0){
@@ -303,9 +303,9 @@ int main(void)
       }
   }
   if (eep.sp.identif == 0 || eep.sp.identif > 30) eep_initial(0x0000, eep.data);
-  
+  HAL_GPIO_WritePin(cmdH_05_GPIO_Port,cmdH_05_Pin,GPIO_PIN_RESET);  // cmdH_05_Pin = 0
   tmpbyte = bluetoothName();
-  setChar(0,SIMBL_B); setChar(1,SIMBL_MINUS); setChar(2,tmpbyte);  // "b-0"
+  setChar(0,SIMBL_B); setChar(1,SIMBL_MINUS); setChar(2,tmpbyte);   // "b-0"
   SendDataTM1638(); 
 
   init(&eep.sp, &upv.pv);   // инициализация
@@ -315,8 +315,6 @@ int main(void)
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
   getButton = waitkey/4;
-  setChar(6,3+0xA); setChar(7,DISPL_o);  // "3o"
-  SendDataTM1638();
   HAL_Delay(1000);
 	while (1)
 	{
@@ -947,6 +945,9 @@ static void MX_GPIO_Init(void)
   /*Configure GPIO pin Output Level */
   HAL_GPIO_WritePin(GPIOB, OUT_RCK_Pin|DISPL_STB_Pin, GPIO_PIN_RESET);
 
+  /*Configure GPIO pin Output Level */
+  HAL_GPIO_WritePin(cmdH_05_GPIO_Port, cmdH_05_Pin, GPIO_PIN_SET);
+
   /*Configure GPIO pin : LED_Pin */
   GPIO_InitStruct.Pin = LED_Pin;
   GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
@@ -1012,6 +1013,13 @@ static void MX_GPIO_Init(void)
   GPIO_InitStruct.Mode = GPIO_MODE_INPUT;
   GPIO_InitStruct.Pull = GPIO_PULLUP;
   HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
+
+  /*Configure GPIO pin : cmdH_05_Pin */
+  GPIO_InitStruct.Pin = cmdH_05_Pin;
+  GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
+  GPIO_InitStruct.Pull = GPIO_PULLUP;
+  GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
+  HAL_GPIO_Init(cmdH_05_GPIO_Port, &GPIO_InitStruct);
 
 }
 

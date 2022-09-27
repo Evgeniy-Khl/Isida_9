@@ -64,7 +64,7 @@ void readBackupToDate(uint32_t bkp_reg){
   HAL_RTC_SetDate(&hrtc, &sDate, RTC_FORMAT_BIN);
 }
 
-uint32_t colodarToCounter (void)
+uint32_t timestamp(void)
 {
 	uint8_t a, m;
 	int16_t y;

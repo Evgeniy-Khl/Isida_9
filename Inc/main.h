@@ -103,6 +103,8 @@ void Error_Handler(void);
 #define Door_GPIO_Port GPIOB
 #define OVERHEAT_Pin GPIO_PIN_4
 #define OVERHEAT_GPIO_Port GPIOB
+#define cmdH_05_Pin GPIO_PIN_5
+#define cmdH_05_GPIO_Port GPIOB
 #define mem_SCL_Pin GPIO_PIN_6
 #define mem_SCL_GPIO_Port GPIOB
 #define mem_SDA_Pin GPIO_PIN_7

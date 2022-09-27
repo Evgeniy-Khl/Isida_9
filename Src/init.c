@@ -13,12 +13,10 @@ extern int16_t humAdc;
 extern float PVold1, PVold2;
 
 void init(struct eeprom *t, struct rampv *ram){
- int8_t i;
-//  for(i=0;i<8;i++) {setChar(i,SIMBL_BL); PointOn(i);}  // only decimal points is on
-//  SendDataTM1638();
-//---------- Поиск датчиков ---------------------------------------------------------------------------------------------------
+ int8_t err;
+//---------- Поиск датчиков --------------
   ds18b20_port_init();
-  ds18b20_count(MAX_DEVICES);     // проверяем наличие датчиков если error = 0 датчики найдены
+  ds18b20_count(MAX_DEVICES);             // проверяем наличие датчиков если error = 0 датчики найдены
   setChar(0,ds18b20_amount); setChar(1,SIMBL_d); setChar(2,0);  // "2d0"
 //  if(ds18b20_amount > 2) checkSensor(); // проверяем на подключение датчика температуры скорлупы яйца
   if(t->HihEnable){                       // если разрешено ищем HIH-5030 в V humAdc 
@@ -27,17 +25,17 @@ void init(struct eeprom *t, struct rampv *ram){
       PVold1 = PVold2 = humAdc;
     }
   }
-  else {
+//  else {
 //    AM2301 = am2301_Read(ram, t->spRH[0]);
-    HAL_Delay(1000);
-    am2301_port_init();
-    AM2301 = am2301_Start();
-    if(AM2301) setChar(2,1);              // если обнаружен AM2301 "2d1"
-  }
-  i = t->identif;
-  setChar(3,SIMBL_n); setChar(4,i/10); setChar(5,i%10); // "n01"
+//    HAL_Delay(1000);
+//    am2301_port_init();
+//    AM2301 = am2301_Start();
+//    if(AM2301) setChar(2,2);              // если обнаружен AM2301 "2d2"
+//  }
+  err = t->identif;
+  setChar(3,SIMBL_n); setChar(4,err/10); setChar(5,err%10); // "n01"
   displ_3(VERSION,VERS,0); SendDataTM1638();            // Версия программы
-//=====
+//======== датчики определены ============ 
   if(ds18b20_amount) ds18b20_Convert_T();
   else {// если датчики не обнаружены - останавливаем программу и ищем датчики
     while(ds18b20_amount == 0){
@@ -49,48 +47,34 @@ void init(struct eeprom *t, struct rampv *ram){
     }
     ds18b20_Convert_T();
   }    
-  HAL_GPIO_WritePin(Beeper_GPIO_Port, Beeper_Pin, GPIO_PIN_SET);  // Beeper On
-  HAL_Delay(100);
-  HAL_GPIO_WritePin(Beeper_GPIO_Port, Beeper_Pin, GPIO_PIN_RESET);  // Beeper Off
+//  HAL_GPIO_WritePin(Beeper_GPIO_Port, Beeper_Pin, GPIO_PIN_SET);  // Beeper On
+//  HAL_Delay(100);
+//  HAL_GPIO_WritePin(Beeper_GPIO_Port, Beeper_Pin, GPIO_PIN_RESET);// Beeper Off
 	HAL_Delay(1000);
-//---------- Поиск модулей расширения -----------------------------------------------------------------------------------------
+//---------- Поиск модулей расширения --------
 	modules = 0;
-//  if(sd_check()) modules|=0x20;    // SD search
   if(rtc_check()) modules|=0x10;    // Real Time Clock search and availability of EEPROM
   if(module_check(ID_HALL)) {modules|=1; t->condition|=0x40;} else t->condition&=0xBF;  // если модуль обнаружен включаем контроль иначе контроль отключаем
   if(module_check(ID_HORIZON)) {modules|=2; t->condition|=0x20;} else t->condition&=0xDF; // если модуль обнаружен включаем контроль иначе контроль отключаем
   if(module_check(ID_CO2)) modules|=4;    // модуль CO2
   if(module_check(ID_FLAP)) modules|=8;   // модуль воздушных заслонок 
   setChar(0,SIMBL_u); setChar(1,modules/10); setChar(2,modules%10); // "u00"
-//---------- Датчик тока ------------------------------------------------------------------------------------------------------
-  i = 0;
-  if(t->KoffCurr==0){
-    i = 99;   // ОТКЛЮЧЕН мониторинг тока симистора !!!
-    setChar(3,SIMBL_o); setChar(4,i/10); setChar(5,i%10); // "o99"
-    i = 0;
-    while (i<6){
-      HAL_Delay(100);
-      HAL_GPIO_WritePin(Beeper_GPIO_Port, Beeper_Pin, GPIO_PIN_SET);  // Beeper On
-      HAL_Delay(50);
-      HAL_GPIO_WritePin(Beeper_GPIO_Port, Beeper_Pin, GPIO_PIN_RESET);  // Beeper Off
-      i++;
-    }
-  }
-  else {setChar(3,SIMBL_o); setChar(4,i/10); setChar(5,i%10);} // "o00"}
-  
-//------------------ Инициализация SD карты -----------------------------------------------------------------------------------
-  i = My_LinkDriver();     // инициализация SD карты
-  setChar(3,SIMBL_c); setChar(4,i/10); setChar(5,i); // "c00"
-  if(i) card = 0; else card = 1;
-//=====
-  setChar(6,2+0xA); setChar(7,DISPL_o);  // "2o"
+//---------- Поиск ошибок --------------------
+  err=0;
+  if(t->KoffCurr==0)  err|=1;   // ОТКЛЮЧЕН мониторинг тока симистора !!!
+//---------- Инициализация SD карты ----------
+  if(My_LinkDriver()) err|=2;   // инициализация SD карты  
+//============================================
+  setChar(3,SIMBL_E); setChar(4,err/10); setChar(5,err); // "E00"
+  setChar(6,DISPL_MINUS); setChar(7,DISPL_MINUS);  // "--"
   SendDataTM1638();
-  while (i<2){
-    HAL_Delay(200);
+  err++;
+  while (err){
+    HAL_Delay(500);
     HAL_GPIO_WritePin(Beeper_GPIO_Port, Beeper_Pin, GPIO_PIN_SET);  // Beeper On
-    HAL_Delay(50);
+    HAL_Delay(500);
     HAL_GPIO_WritePin(Beeper_GPIO_Port, Beeper_Pin, GPIO_PIN_RESET);  // Beeper Off
-    i++;
+    err--;
   }
   HAL_Delay(1000);
   
