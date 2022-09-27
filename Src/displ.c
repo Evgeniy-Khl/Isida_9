@@ -4,7 +4,7 @@
 #include "proc.h"
 
 extern int8_t displmode, countsec, disableBeep, keynum;
-extern uint8_t ok0, ok1, psword, setup, servis, card;
+extern uint8_t ok0, ok1, psword, setup, servis, cardOk;
 extern int16_t buf, currAdc;
 
 //------- Светодиодная индикация --------------------------------------------------------- 
@@ -23,7 +23,7 @@ void ledOut(uint8_t condition, uint8_t fuses){
     if(TURN) LedOn(4,1);  // лотки вверху
 //    if(XXXX) LedOn(5,1);  // ????????????
 //    if(prog) LedOn(6,1);  // работает по программе
-    if(card) LedOn(7,1);  // SD карты Ok!
+    if(cardOk) LedOn(7,1);  // SD карты Ok!
     if(HAL_GPIO_ReadPin(Door_GPIO_Port, Door_Pin)) LedOn(4,2);  // концевик дверей
 //    if(XXXX) LedOn(5,2);  // ОСТАНОВ вентилятора    
 //    if(XXXX) LedOn(6,2);  // НЕТ поворота

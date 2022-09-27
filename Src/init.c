@@ -11,6 +11,7 @@
 extern uint8_t ds18b20_amount, modules, pvTimer, pvAeration, topUser, card;
 extern int16_t humAdc;
 extern float PVold1, PVold2;
+uint8_t bluetoothName(void);
 
 void init(struct eeprom *t, struct rampv *ram){
  int8_t err;
@@ -34,7 +35,7 @@ void init(struct eeprom *t, struct rampv *ram){
 //  }
   err = t->identif;
   setChar(3,SIMBL_n); setChar(4,err/10); setChar(5,err%10); // "n01"
-  displ_3(VERSION,VERS,0); SendDataTM1638();            // Версия программы
+  displ_3(VERSION,VERS,0); SendDataTM1638();                // Версия программы
 //======== датчики определены ============ 
   if(ds18b20_amount) ds18b20_Convert_T();
   else {// если датчики не обнаружены - останавливаем программу и ищем датчики
@@ -42,29 +43,26 @@ void init(struct eeprom *t, struct rampv *ram){
       HAL_GPIO_WritePin(Beeper_GPIO_Port, Beeper_Pin, GPIO_PIN_SET);  // Beeper On
       HAL_Delay(200);
       HAL_GPIO_WritePin(Beeper_GPIO_Port, Beeper_Pin, GPIO_PIN_RESET);  // Beeper Off
-      HAL_Delay(400); 
+      HAL_Delay(500); 
       ds18b20_count(MAX_DEVICES);
     }
     ds18b20_Convert_T();
-  }    
-//  HAL_GPIO_WritePin(Beeper_GPIO_Port, Beeper_Pin, GPIO_PIN_SET);  // Beeper On
-//  HAL_Delay(100);
-//  HAL_GPIO_WritePin(Beeper_GPIO_Port, Beeper_Pin, GPIO_PIN_RESET);// Beeper Off
+  }
 	HAL_Delay(1000);
 //---------- Поиск модулей расширения --------
 	modules = 0;
   if(rtc_check()) modules|=0x10;    // Real Time Clock search and availability of EEPROM
-  if(module_check(ID_HALL)) {modules|=1; t->condition|=0x40;} else t->condition&=0xBF;  // если модуль обнаружен включаем контроль иначе контроль отключаем
-  if(module_check(ID_HORIZON)) {modules|=2; t->condition|=0x20;} else t->condition&=0xDF; // если модуль обнаружен включаем контроль иначе контроль отключаем
-  if(module_check(ID_CO2)) modules|=4;    // модуль CO2
-  if(module_check(ID_FLAP)) modules|=8;   // модуль воздушных заслонок 
+  if(module_check(ID_HALL))    {modules|=1; t->condition|=0x40;} else t->condition&=0xBF;  // если модуль обнаружен включаем контроль иначе контроль отключаем
+  if(module_check(ID_HORIZON)) {modules|=2; t->condition|=0x20;} else t->condition&=0xDF;  // если модуль обнаружен включаем контроль иначе контроль отключаем
+  if(module_check(ID_CO2))      modules|=4;   // модуль CO2
+  if(module_check(ID_FLAP))     modules|=8;   // модуль воздушных заслонок 
   setChar(0,SIMBL_u); setChar(1,modules/10); setChar(2,modules%10); // "u00"
-//---------- Поиск ошибок --------------------
+//---------- Инициализация аппаратной части --------------------
   err=0;
   if(t->KoffCurr==0)  err|=1;   // ОТКЛЮЧЕН мониторинг тока симистора !!!
-//---------- Инициализация SD карты ----------
-  if(My_LinkDriver()) err|=2;   // инициализация SD карты  
-//============================================
+  if(My_LinkDriver()) err|=2;   // инициализация SD карты 
+  if(bluetoothName()) err|=4;   // инициализация BlueTooth
+//==============================================================
   setChar(3,SIMBL_E); setChar(4,err/10); setChar(5,err); // "E00"
   setChar(6,DISPL_MINUS); setChar(7,DISPL_MINUS);  // "--"
   SendDataTM1638();

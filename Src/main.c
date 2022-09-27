@@ -43,7 +43,6 @@
 /* Private define ------------------------------------------------------------*/
 /* USER CODE BEGIN PD */
 void bluetoothCallback(void);
-uint8_t bluetoothName(void);
 /* USER CODE END PD */
 
 /* Private macro -------------------------------------------------------------*/
@@ -96,7 +95,7 @@ extern struct {
 
 // -------- ISIDA ------
 uint8_t getButton=0, modules=0, setup, servis, waitset, waitkey=WAITCOUNT;
-int8_t countsec=-10, countmin, displmode, card=0;
+int8_t countsec=-10, countmin, displmode, cardOk=0;
 /*
 ext[0] модуль Холла
 ext[1] модуль ГОРИЗОНТА
@@ -291,11 +290,11 @@ int main(void)
   //******************************************************************************
   for(int8_t i=0;i<8;i++) {setChar(i,SIMBL_BL); PointOn(i); LedOn(i,3);}// "BL"+точки
   SendDataTM1638();
-  SendCmdTM1638(0x8F);      // Transmit the display control command to set maximum brightness (8FH)
+  SendCmdTM1638(0x8F);  // Transmit the display control command to set maximum brightness (8FH)
   //---- проверка EEPROM ---------------
   tmpbyte = eep_read(0x0000, eep.data);
   if(tmpbyte){              // бесконечный цикл НЕИСПРАВНА EEPROM "EEP-x" (HAL_ERROR=0x01U, HAL_BUSY=0x02U, HAL_TIMEOUT=0x03U)
-      while(ds18b20_amount == 0){
+      while(1){
           HAL_GPIO_WritePin(Beeper_GPIO_Port, Beeper_Pin, GPIO_PIN_SET);  // Beeper On
           HAL_Delay(200);
           HAL_GPIO_WritePin(Beeper_GPIO_Port, Beeper_Pin, GPIO_PIN_RESET);  // Beeper Off
@@ -303,8 +302,8 @@ int main(void)
       }
   }
   if (eep.sp.identif == 0 || eep.sp.identif > 30) eep_initial(0x0000, eep.data);
-  HAL_GPIO_WritePin(cmdH_05_GPIO_Port,cmdH_05_Pin,GPIO_PIN_RESET);  // cmdH_05_Pin = 0
-  tmpbyte = bluetoothName();
+
+  
   setChar(0,SIMBL_B); setChar(1,SIMBL_MINUS); setChar(2,tmpbyte);   // "b-0"
   SendDataTM1638(); 
 
@@ -448,7 +447,7 @@ int main(void)
             if((upv.pv.warning & 3)&&(newErr-alarmErr)>2) disableBeep=0;  // если при блокироке сирены продолжает увеличиватся ошибка сброс блокировки
             if(countsec>59){
               ++countmin; countsec=0; if (disableBeep) disableBeep--;
-              if(card) SD_write(fileName, p_eeprom, p_rampv); else card = My_LinkDriver();  // запись на SD если КАМЕРА ВКЛЮЧЕНА в работу
+              if(cardOk) SD_write(fileName, p_eeprom, p_rampv); else My_LinkDriver();  // запись на SD если КАМЕРА ВКЛЮЧЕНА в работу
               if(!(eep.sp.condition&0x18)) rotate_trays(eep.sp.timer[0], eep.sp.timer[1], &upv.pv);  // выполняется только если Камера ВКЛ.
               if(upv.pv.pvCO2[0]>0) CO2_check(eep.sp.spCO2, eep.sp.spCO2, upv.pv.pvCO2[0]); // Проверка концентрации СО2
               else if(eep.sp.air[1]>0) aeration_check(eep.sp.air[0], eep.sp.air[1]);    // Проветривание выполняется только если air[1]>0
@@ -485,7 +484,7 @@ int main(void)
                if(currAdc>1000){upv.pv.errors|=0x04;}   // если сила тока > 1000 mV ПРОБОЙ СИМИСТОРА!
                if(countsec>59){
                 countsec=0;// ???????????????????????????????
-                if(card) SD_write(fileName, p_eeprom, p_rampv); else card = My_LinkDriver();  // ????????????????????????????????????????????
+                if(cardOk) SD_write(fileName, p_eeprom, p_rampv); else My_LinkDriver();  // ????????????????????????????????????????????
                 if(eep.sp.condition&0x80) rotate_trays(eep.sp.timer[0], eep.sp.timer[1], &upv.pv); // Поворот лотков при ОТКЛЮЧЕННОЙ камере
                }
   //--------------------------------------------------------------------------------------------------------------------------------------------

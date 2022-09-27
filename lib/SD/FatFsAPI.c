@@ -16,7 +16,7 @@ FILINFO fileInfo;
 DIR dir;
 union sd {uint8_t sect[512]; char buffer2[512];} buffer;
 //uint8_t result;
-extern uint8_t /*Y_txt, X_left,*/ displ_num, ds18b20_amount, checkButt, Y_bottom, /*newButt,*/ card;
+extern uint8_t /*Y_txt, X_left,*/ displ_num, ds18b20_amount, checkButt, Y_bottom, cardOk;
 
 extern uint16_t fillScreen, pvT[];
 extern uint32_t UnixTime;
@@ -25,7 +25,8 @@ uint32_t bwrt;   // для возврата из функции количества реально записанных байт
 
 //-- My_LinkDriver --------------------------------------------------------------
 uint8_t My_LinkDriver(void){
- uint8_t cardOk=0, item;
+ uint8_t item;
+  cardOk = 0;
   FATFS_LinkDriver(&USER_Driver, USERPath);
   if(f_mount(&SDFatFs,(const char*)USERPath,0)!=FR_OK) item = 9;  // Не монтируется SD карта!
   else {
@@ -43,8 +44,8 @@ uint8_t My_LinkDriver(void){
           sprintf(buffile,"timeStamp;  T1;   T2;   RH\r\n");
           for(item=0; item<LEN_BUFF; item++){if (buffile[item]==0) break;}
           item = f_write(&MyFile, buffile, item, (void*)&bwrt);
-          if((bwrt == 0)||(item!=FR_OK))	cardOk = 0;       // Немогу записать заголовок!
-          else {f_close(&MyFile); cardOk = 1;}              // Новый файл создан!
+          if((bwrt == 0)||(item!=FR_OK)) cardOk = 0;       // Немогу записать заголовок!
+          else {f_close(&MyFile); cardOk = 1;}             // Новый файл создан!
         }
         break;
       case FR_OK: cardOk = 1; break;        // sprintf(buffile,"SD карта определена: 0x%02X",sdinfo.type);
@@ -61,7 +62,7 @@ uint8_t SD_write(const char* flname, struct eeprom *t, struct rampv *ram){
   item = f_mount(&SDFatFs,(const char*)USERPath,0);
   if(item==FR_OK){  // Монтируем SD карту!
     item = f_open(&MyFile, flname, FA_OPEN_EXISTING|FA_WRITE);
-    if(item==FR_OK) {
+    if(item==FR_OK){
       uint32_t f_size = MyFile.fsize;
       item = f_lseek(&MyFile, f_size);
       if (item==FR_OK){
@@ -69,14 +70,13 @@ uint8_t SD_write(const char* flname, struct eeprom *t, struct rampv *ram){
         sprintf(buffile,"%u; %.1f; %.1f; %.1f\r\n", UnixTime, (float)ram->pvT[0]/10, (float)ram->pvT[1]/10, (float)ram->pvRH/10);
         for(item=0;item<LEN_BUFF;item++){if (buffile[item]==0) break;}
         item = f_write(&MyFile, buffile, item,(void*)&bwrt);
-        if((bwrt==0)||(item!=FR_OK)) {card = 0; FATFS_UnLinkDriver(USERPath);}
+        if((bwrt==0)||(item!=FR_OK)) {cardOk = 0; FATFS_UnLinkDriver(USERPath);}
       }
-      else {card = 0; FATFS_UnLinkDriver(USERPath);}
+      else {cardOk = 0; FATFS_UnLinkDriver(USERPath);}
       f_close(&MyFile);
       f_mount(NULL,(TCHAR const*)USERPath,0);
-//      if (displ_num==0) ILI9341_WriteString(X_left, Y_bottom - 22, " ЗАПИСАН ", Font_11x18, ILI9341_BLACK, ILI9341_GREEN);
     }
-    else {card = 0; FATFS_UnLinkDriver(USERPath);}
+    else {cardOk = 0; FATFS_UnLinkDriver(USERPath);}
   }
   return item;
 }
