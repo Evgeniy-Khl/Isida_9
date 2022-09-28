@@ -511,7 +511,7 @@ int main(void)
         if(setup) display_setup(&eep.sp);
         else if(servis) display_servis(&upv.pv);
         else display(&eep.sp, &upv.pv);
-        ledOut(eep.sp.condition, upv.pv.fuses); SendDataTM1638(); set_Output();
+        ledOut(eep.sp.condition, upv.pv.warning, upv.pv.fuses); SendDataTM1638(); set_Output();
       }
   /* -------------------------------------------- END таймер TIM4 1 √ц. ------------------------------------------------------------------------ */     
     /* USER CODE END WHILE */
@@ -525,7 +525,7 @@ int main(void)
           if(pwTriac1 && (upv.pv.fuses&0x01)==0) {pwTriac1=valRun; HUMIDI = 1; LEDOFF = 1;}  // HUMIDIFIER On
         }
       }
-      if(LEDOFF) {LEDOFF = 0; ledOut(eep.sp.condition, upv.pv.fuses); SendDataTM1638(); set_Output();}
+      if(LEDOFF) {LEDOFF = 0; ledOut(eep.sp.condition, upv.pv.warning, upv.pv.fuses); SendDataTM1638(); set_Output();}
       if(beepOn < 0) {beepOn=0; HAL_GPIO_WritePin(Beeper_GPIO_Port, Beeper_Pin, GPIO_PIN_RESET);}  // Beeper Off
       if(bluetoothData.ind == 0){
         bluetoothData.timeOut=0;

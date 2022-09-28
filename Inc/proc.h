@@ -12,7 +12,6 @@ uint8_t statF2(uint8_t n, uint16_t statPw);
 void sysTick_Init(void);
 void beeper_ON(uint16_t duration);
 void set_Output(void);
-//void setDataAndTime(uint8_t year, uint8_t month, uint8_t day, uint8_t weekday, uint8_t hour, uint8_t min,  uint8_t sec);
-uint32_t colodarToCounter (void);
+
 #endif /* __PROC_H */
 
