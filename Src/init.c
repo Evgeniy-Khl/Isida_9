@@ -59,9 +59,9 @@ void init(struct eeprom *t, struct rampv *ram){
   setChar(0,SIMBL_u); setChar(1,modules/10); setChar(2,modules%10); // "u00"
 //---------- Инициализация аппаратной части --------------------
   err=0;
-  if(t->KoffCurr==0)  err|=1;   // ОТКЛЮЧЕН мониторинг тока симистора !!!
-  if(My_LinkDriver()) err|=2;   // инициализация SD карты 
-  if(bluetoothName()) err|=4;   // инициализация BlueTooth
+  if(t->KoffCurr==0)  err|=1;   // E01 - ОТКЛЮЧЕН мониторинг тока симистора
+  if(My_LinkDriver()) err|=2;   // E02 - ошибка инициализация SD карты 
+  if(bluetoothName()) err|=4;   // E04 - инициализация BlueTooth
 //==============================================================
   setChar(3,SIMBL_E); setChar(4,err/10); setChar(5,err); // "E00"
   setChar(6,DISPL_MINUS); setChar(7,DISPL_MINUS);  // "--"
@@ -84,7 +84,7 @@ void init(struct eeprom *t, struct rampv *ram){
   ram->pvT[1]=999;
   ram->pvT[2]=999;
   ram->pvT[3]=999;
-  ram->pvRH = 999;
+  ram->pvRH =1999;
   ram->date  = 1;
   ram->hours = 23;
   ram->fuses = 0;

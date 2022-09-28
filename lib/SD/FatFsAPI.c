@@ -5,22 +5,18 @@
 #include "my.h"
 
 extern char USERPath[]; /* logical drive path */
-extern char fileName[], buffile[], txt[];
+extern char fileName[];
+extern uint8_t cardOk;
+extern uint32_t UnixTime;
 
 FATFS SDFatFs;
-//FRESULT res; //результат выполнения
 DWORD fre_clust, fre_sect, tot_sect;
 FATFS *fs;
 FIL MyFile;
 FILINFO fileInfo;
 DIR dir;
-union sd {uint8_t sect[512]; char buffer2[512];} buffer;
-//uint8_t result;
-extern uint8_t /*Y_txt, X_left,*/ displ_num, ds18b20_amount, checkButt, Y_bottom, cardOk;
 
-extern uint16_t fillScreen, pvT[];
-extern uint32_t UnixTime;
-//extern RTC_DateTypeDef sDate;
+char buffile[LEN_BUFF], txt[25];
 uint32_t bwrt;   // для возврата из функции количества реально записанных байт
 
 //-- My_LinkDriver --------------------------------------------------------------
@@ -41,7 +37,7 @@ uint8_t My_LinkDriver(void){
         // если файла нет то ...
         item = f_open(&MyFile, fileName, FA_CREATE_NEW|FA_WRITE);  // Пытаемся создать файл!
         if(item==FR_OK){// формируем первую строку...
-          sprintf(buffile,"timeStamp;  T1;   T2;   RH\r\n");
+          sprintf(buffile,"TimeStamp;  St   T1  [U1]   T2  [U2]  RH  [Urh] Warn Err  Fus\r\n");
           for(item=0; item<LEN_BUFF; item++){if (buffile[item]==0) break;}
           item = f_write(&MyFile, buffile, item, (void*)&bwrt);
           if((bwrt == 0)||(item!=FR_OK)) cardOk = 0;       // Немогу записать заголовок!
@@ -67,9 +63,14 @@ uint8_t SD_write(const char* flname, struct eeprom *t, struct rampv *ram){
       item = f_lseek(&MyFile, f_size);
       if (item==FR_OK){
         UnixTime = timestamp(); //  персчет в UnixTime
-        sprintf(buffile,"%u; %.1f; %.1f; %.1f\r\n", UnixTime, (float)ram->pvT[0]/10, (float)ram->pvT[1]/10, (float)ram->pvRH/10);
+        sprintf(buffile,"%u;%3u; %.1f[%.1f] %.1f[%.1f]",UnixTime,t->condition,(float)ram->pvT[0]/10,(float)t->spT[0]/10,(float)ram->pvT[1]/10,(float)t->spT[1]/10);
+        if(ram->pvRH<=1000) sprintf(txt,"%.1f[%.1f];",(float)ram->pvRH/10,(float)t->spRH[1]/10);
+        else sprintf(txt,"--.-[--.-];");
+        strcat(buffile,txt);
+        sprintf(txt,"%x; %x; %x\r\n",ram->warning,ram->errors,ram->fuses);
+        strcat(buffile,txt);
         for(item=0;item<LEN_BUFF;item++){if (buffile[item]==0) break;}
-        item = f_write(&MyFile, buffile, item,(void*)&bwrt);
+        item = f_write(&MyFile, buffile, item,(void*)&bwrt);    // if(item==FR_OK) file changed successfully!
         if((bwrt==0)||(item!=FR_OK)) {cardOk = 0; FATFS_UnLinkDriver(USERPath);}
       }
       else {cardOk = 0; FATFS_UnLinkDriver(USERPath);}

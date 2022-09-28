@@ -71,7 +71,7 @@ RTC_TimeTypeDef sTime;
 RTC_DateTypeDef sDate;
 volatile uint16_t adc[2] = {0,0};      // у нас два канала АЦП, поэтому массив из двух элементов
 volatile uint8_t flag = 0;             // флаг окончания преобразования АЦП
-char fileName[15]={0}, buffile[50], txt[10];
+char fileName[15]={0};
 union Byte portOut;
 union Byte portFlag;
 
