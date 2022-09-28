@@ -376,7 +376,7 @@ int main(void)
           else if((upv.pv.warning&0x20)==0){    // НЕТ ОСТАНОВА тихоходного вентилятора !!!
             if(upv.pv.pvT[0] < 850){
               int16_t err = eep.sp.spT[0] - upv.pv.pvT[0];
-              if(heatCondition(err, eep.sp.alarm[0], eep.sp.extOn[0])) upv.pv.warning |= 0x01;
+              if(heatCondition(err, eep.sp.alarm[0], eep.sp.extOn[0])) upv.pv.warning |= 0x01;  // ОТКЛОНЕНИЕ по температуре
               pwTriac0 = heater(err, &eep.sp);
               if(pwTriac0) HEATER = 1;  // HEATER On
             }
@@ -389,7 +389,7 @@ int main(void)
           if(ok0&1){  // отключение УВЛАЖНЕНИЯ при РАЗОГРЕВЕ и ПЕРЕОХЛАЖДЕНИИ
             if(HIH5030||AM2301){  // подключен электронный датчик влажности
               int16_t err = eep.sp.spRH[1] - upv.pv.pvRH;
-              if(humCondition(err, eep.sp.alarm[1], eep.sp.extOn[1])) upv.pv.warning |= 0x02;
+              if(humCondition(err, eep.sp.alarm[1], eep.sp.extOn[1])) upv.pv.warning |= 0x02; // ОТКЛОНЕНИЕ по влажности
               // релейный режим работы  0-НЕТ; 1->по кан.[0] 2->по кан.[1] 3->по кан.[0]&[1] 4->по кан.[1] импульсный режим
               if(eep.sp.relayMode==4) valRun = humidifier(err, &eep.sp);
               else {
@@ -399,7 +399,7 @@ int main(void)
             }
             else if(upv.pv.pvT[1] < 850){
               int16_t err = eep.sp.spT[1] - upv.pv.pvT[1];
-              if(humCondition(err, eep.sp.alarm[1], eep.sp.extOn[1])) upv.pv.warning |= 0x02;
+              if(humCondition(err, eep.sp.alarm[1], eep.sp.extOn[1])) upv.pv.warning |= 0x02; // ОТКЛОНЕНИЕ по влажности
               // релейный режим работы  0-НЕТ; 1->по кан.[0] 2->по кан.[1] 3->по кан.[0]&[1] 4->по кан.[1] импульсный режим
               if(eep.sp.relayMode==4) valRun = humidifier(err, &eep.sp);
               else {
@@ -429,11 +429,17 @@ int main(void)
           // --------------------------------------- ВСПОМОГАТЕЛЬНЫЙ -----------------------------------------------------------------
           extra_2(&eep.sp, &upv.pv);
   //---------------------------------------- ЗОНАЛЬНОСТЬ температуры камеры -----------------------------------------------------------------------
-            if (ok0){
+            if(ok0){
                 if(HIH5030||AM2301) {if(ds18b20_amount>1) {if(abs(upv.pv.pvT[0]-upv.pv.pvT[1])>eep.sp.Zonality) upv.pv.warning |=0x08;}} // Большой перепад температур.
                 else     {if(ds18b20_amount>2) {if(abs(upv.pv.pvT[0]-upv.pv.pvT[2])>eep.sp.Zonality) upv.pv.warning |=0x08;}};// Большой перепад температур.
             }
-            if(!(HIH5030||AM2301) && (upv.pv.pvT[1]-upv.pv.pvT[0])>20) {upv.pv.warning =0x10; pwTriac0 = 500;}					// Неправильная конфигурация датчиков !!
+            if(!(HIH5030||AM2301) && (upv.pv.pvT[1]-upv.pv.pvT[0])>20){
+              if(upv.pv.pvT[1] < 850){
+                upv.pv.warning =0x10; 					// Неправильная конфигурация датчиков !!
+                pwTriac0 = 500;
+              }
+              else upv.pv.errors |= 0x02;   // ОШИБКА ДАТЧИКА влажности !!!
+            }
   //--------------------------------------- ПОВОРОТ ЛОТКОВ Статистика камеры ----------------------------------------------------------------------
             if(eep.sp.KoffCurr){
             // конверсия mV в mA ->100mV/1A+1.65V. (5A->0.5+1.65=2.15; 10A->2.65; 20A->3.65) добавляем делитель 110k/68k на 2,65 и получаем 10А = 1В = 1000 мВ

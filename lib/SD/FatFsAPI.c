@@ -37,7 +37,7 @@ uint8_t My_LinkDriver(void){
         // если файла нет то ...
         item = f_open(&MyFile, fileName, FA_CREATE_NEW|FA_WRITE);  // Пытаемся создать файл!
         if(item==FR_OK){// формируем первую строку...
-          sprintf(buffile,"TimeStamp;  St   T1  [U1]   T2  [U2]  RH  [Urh] Warn Err  Fus\r\n");
+          sprintf(buffile,"TimeStamp;  St   T1  [U1]   T2  [U2]  RH  [Urh] Wa Er Fu\r\n");
           for(item=0; item<LEN_BUFF; item++){if (buffile[item]==0) break;}
           item = f_write(&MyFile, buffile, item, (void*)&bwrt);
           if((bwrt == 0)||(item!=FR_OK)) cardOk = 0;       // Немогу записать заголовок!
@@ -67,7 +67,7 @@ uint8_t SD_write(const char* flname, struct eeprom *t, struct rampv *ram){
         if(ram->pvRH<=1000) sprintf(txt,"%.1f[%.1f];",(float)ram->pvRH/10,(float)t->spRH[1]/10);
         else sprintf(txt,"--.-[--.-];");
         strcat(buffile,txt);
-        sprintf(txt,"%x; %x; %x\r\n",ram->warning,ram->errors,ram->fuses);
+        sprintf(txt,"%2x;%2x;%2x\r\n",ram->warning,ram->errors,ram->fuses);
         strcat(buffile,txt);
         for(item=0;item<LEN_BUFF;item++){if (buffile[item]==0) break;}
         item = f_write(&MyFile, buffile, item,(void*)&bwrt);    // if(item==FR_OK) file changed successfully!
