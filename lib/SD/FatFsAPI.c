@@ -37,7 +37,7 @@ uint8_t My_LinkDriver(void){
         // если файла нет то ...
         item = f_open(&MyFile, fileName, FA_CREATE_NEW|FA_WRITE);  // Пытаемся создать файл!
         if(item==FR_OK){// формируем первую строку...
-          sprintf(buffile,"TimeStamp;  St   T1  [U1]   T2  [U2]  RH  [Urh] Wa Er Fu\r\n");
+          sprintf(buffile,"TimeStamp;  St   T1  [U1]   T2  [U2]  RH  [Urh] Pwr Wa Er Fu\r\n");
           for(item=0; item<LEN_BUFF; item++){if (buffile[item]==0) break;}
           item = f_write(&MyFile, buffile, item, (void*)&bwrt);
           if((bwrt == 0)||(item!=FR_OK)) cardOk = 0;       // Немогу записать заголовок!
@@ -63,11 +63,11 @@ uint8_t SD_write(const char* flname, struct eeprom *t, struct rampv *ram){
       item = f_lseek(&MyFile, f_size);
       if (item==FR_OK){
         UnixTime = timestamp(); //  персчет в UnixTime
-        sprintf(buffile,"%u;%3u; %.1f[%.1f] %.1f[%.1f]",UnixTime,t->condition,(float)ram->pvT[0]/10,(float)t->spT[0]/10,(float)ram->pvT[1]/10,(float)t->spT[1]/10);
-        if(ram->pvRH<=1000) sprintf(txt,"%.1f[%.1f];",(float)ram->pvRH/10,(float)t->spRH[1]/10);
-        else sprintf(txt,"--.-[--.-];");
+        sprintf(buffile,"%u;%2x;%5.1f;%4.1f;%5.1f;%4.1f;",UnixTime,t->condition,(float)ram->pvT[0]/10,(float)t->spT[0]/10,(float)ram->pvT[1]/10,(float)t->spT[1]/10);
+        if(ram->pvRH<=1000) sprintf(txt,"%5.1f;%4.1f;",(float)ram->pvRH/10,(float)t->spRH[1]/10);
+        else sprintf(txt," --.-;--.-;");
         strcat(buffile,txt);
-        sprintf(txt,"%2x;%2x;%2x\r\n",ram->warning,ram->errors,ram->fuses);
+        sprintf(txt,"%3u;%2x;%2x;%2x\r\n",ram->power,ram->warning,ram->errors,ram->fuses);
         strcat(buffile,txt);
         for(item=0;item<LEN_BUFF;item++){if (buffile[item]==0) break;}
         item = f_write(&MyFile, buffile, item,(void*)&bwrt);    // if(item==FR_OK) file changed successfully!

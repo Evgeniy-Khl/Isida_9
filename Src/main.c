@@ -263,9 +263,9 @@ int main(void)
   HAL_UART_Receive_IT(&huart1,(uint8_t*)bluetoothData.RXBuffer,2);
   HAL_GPIO_WritePin(LED_GPIO_Port, LED_Pin, GPIO_PIN_SET);  // LED Off
   //--------- ХОЛОСТОЕ ВЫПОЛНЕНИЕ при котором каналы распологаются правильно --------
-  HAL_ADC_Start_DMA(&hadc1, (uint32_t*)&adc, 2);  // стартуем АЦП
-  while(flag==0);
-  flag = 0;
+//  HAL_ADC_Start_DMA(&hadc1, (uint32_t*)&adc, 2);  // стартуем АЦП
+//  while(flag==0);
+//  flag = 0;
   //----------- Теперь каналы сдвинуты. Последний стал первым -----------------------
   HAL_ADC_Start_DMA(&hadc1, (uint32_t*)&adc, 2);  // стартуем АЦП
   while(flag==0);
@@ -276,7 +276,7 @@ int main(void)
   HAL_RTC_WaitForSynchro(&hrtc);                      // Після увімкнення, пробудження, скидання, потрібно викликати цю функцію  
   if(HAL_RTCEx_BKUPRead(&hrtc,RTC_BKP_DR1) == 0){     // Перевіряємо чи дата вже була збережена чи ні
    // як ні, то задамо якусь початкову дату і час
-    setDataAndTime(22,RTC_MONTH_SEPTEMBER,0x01,RTC_WEEKDAY_THURSDAY,0,0,0,RTC_FORMAT_BIN);//2022,MONTH_SEPTEMBER,01  WEEKDAY_THURSDAY  00:00:00
+    setDataAndTime(22,RTC_MONTH_OCTOBER,0x01,RTC_WEEKDAY_SATURDAY,0,0,0,RTC_FORMAT_BIN);//2022,RTC_MONTH_OCTOBER,01,RTC_WEEKDAY_SATURDAY  00:00:00
     writeDateToBackup(RTC_BKP_DR1);       // і запишемо до backup регістрів дату
   }
   else {
@@ -315,7 +315,7 @@ int main(void)
   //----------------------------------- Теперь будем опрашивать три канала на одном АЦП с помощью DMA… -------------------------------------------
 
   /* ------------------------------------------- BEGIN таймер TIM3 6 Гц. ----------------------------------------------------------------------- */
-//      if (getButton>waitkey/4) checkkey(&eep.sp, upv.pv.pvT[0]);  // клавиатура
+      if (getButton>waitkey/4) checkkey(&eep.sp, upv.pv.pvT[0]);  // клавиатура
   /* -------------------------------------------- END таймер TIM3 6 Гц. ------------------------------------------------------------------------ */
 
   /* ------------------------------------------- BEGIN таймер TIM4 1 Гц. ----------------------------------------------------------------------- */
@@ -325,7 +325,8 @@ int main(void)
         while(flag==0);
         flag = 0;
         currAdc = adcTomV(adc[0]);                  // Channel 8 (Port B0) в мВ.
-        if(HIH5030) humAdc  = adcTomV(adc[1]);      // Channel 9 (Port B1) в мВ.
+//        if(HIH5030) humAdc  = adcTomV(adc[1]);      // Channel 9 (Port B1) в мВ.
+        humAdc  = adcTomV(adc[1]);
         adc[0] = 0; adc[1] = 0;
 // ----------- ************************************** --------------------------------------------------
         //-- перевіримо чи настав інший день --------------
@@ -459,7 +460,7 @@ int main(void)
               summPower += summCurr/60;         // суммируем в мВт.
               summCurr = 0;
               if(countmin>59){
-                countmin = 0;
+                countmin = 0; upv.pv.date = sDate.Date; upv.pv.hours = sTime.Hours;
                 eep.sp.EnergyMeter += (summPower/100);// суммируем в Вт.
                 summPower = 0;
                 EEPSAVE=1; waitset=1;
@@ -484,7 +485,7 @@ int main(void)
                upv.pv.power=OFF; portOut.value &= 0x10; upv.pv.pvFlap=FLAPCLOSE; if(modules&8) chkflap(DATAREAD, &upv.pv.pvFlap); VENTIL = OFF;
                if(currAdc>1000){upv.pv.errors|=0x04;}   // если сила тока > 1000 mV ПРОБОЙ СИМИСТОРА!
                if(countsec>59){
-                countsec=0;// ???????????????????????????????
+                countsec=0; upv.pv.date = sDate.Date; upv.pv.hours = sTime.Hours;// ???????????????????????????????
                 if(cardOk) SD_write(fileName, p_eeprom, p_rampv); else My_LinkDriver();  // ????????????????????????????????????????????
                 if(eep.sp.condition&0x80) rotate_trays(eep.sp.timer[0], eep.sp.timer[1], &upv.pv); // Поворот лотков при ОТКЛЮЧЕННОЙ камере
                }

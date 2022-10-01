@@ -87,9 +87,9 @@ void SendDataTM1638(void){
 void ReadKeyTM1638(void){
 	STB_L();  
 	keyBuffer[0] = 0x42; 			    // Set data commend for key reading (42H)
-	HAL_SPI_Transmit(&hspi2,(uint8_t*)keyBuffer, 1, 5000);
+	HAL_SPI_Transmit(&hspi2,(uint8_t*)keyBuffer, 1, 500);
 
-	HAL_SPI_Receive(&hspi2,(uint8_t*)keyBuffer, 4, 5000);
+	HAL_SPI_Receive(&hspi2,(uint8_t*)keyBuffer, 4, 500);
 	STB_H();
 }
 

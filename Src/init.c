@@ -80,12 +80,10 @@ void init(struct eeprom *t, struct rampv *ram){
   ram->pvTimer = t->timer[0];
   pvAeration   = t->air[0];
 //**********????????????******************
-  ram->pvT[0]=999;
-  ram->pvT[1]=999;
-  ram->pvT[2]=999;
-  ram->pvT[3]=999;
+  ram->pvT[0]=1990;
+  ram->pvT[1]=1990;
+  ram->pvT[2]=1990;
+  ram->pvT[3]=1990;
   ram->pvRH =1999;
-  ram->date  = 1;
-  ram->hours = 23;
   ram->fuses = 0;
 }
