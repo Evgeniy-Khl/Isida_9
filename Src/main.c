@@ -295,26 +295,21 @@ int main(void)
   tmpbyte = eep_read(0x0000, eep.data);
   if(tmpbyte){              // бесконечный цикл НЕИСПРАВНА EEPROM "EEP-x" (HAL_ERROR=0x01U, HAL_BUSY=0x02U, HAL_TIMEOUT=0x03U)
       while(1){
-          HAL_GPIO_WritePin(Beeper_GPIO_Port, Beeper_Pin, GPIO_PIN_SET);  // Beeper On
+          HAL_GPIO_WritePin(Beeper_GPIO_Port, Beeper_Pin, GPIO_PIN_SET);    // Beeper On
           HAL_Delay(200);
           HAL_GPIO_WritePin(Beeper_GPIO_Port, Beeper_Pin, GPIO_PIN_RESET);  // Beeper Off
           HAL_Delay(200); 
       }
   }
-  if (eep.sp.identif == 0 || eep.sp.identif > 30) eep_initial(0x0000, eep.data);
+  if (eep.sp.identif == 0 || eep.sp.identif > 30) eep_initial(0x0000, eep.data);// сброс к заводским настройкам
 
-  
-  setChar(0,SIMBL_B); setChar(1,SIMBL_MINUS); setChar(2,tmpbyte);   // "b-0"
-  SendDataTM1638(); 
-
-  init(&eep.sp, &upv.pv);   // инициализация
+  init(&eep.sp, &upv.pv);   // инициализация аппаратной части и подключаемых модулей
   temperature_check(&upv.pv);
   /* USER CODE END 2 */
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
   getButton = waitkey/4;
-  HAL_Delay(1000);
 	while (1)
 	{
   //----------------------------------- Теперь будем опрашивать три канала на одном АЦП с помощью DMA… -------------------------------------------
@@ -329,8 +324,8 @@ int main(void)
         HAL_ADC_Start_DMA(&hadc1, (uint32_t*)&adc, 2);
         while(flag==0);
         flag = 0;
-        currAdc = adcTomV(adc[0]);      // Channel 8 (Port B0) в мВ.
-        humAdc  = adcTomV(adc[1]);      // Channel (Port B1) 9 в мВ.
+        currAdc = adcTomV(adc[0]);                  // Channel 8 (Port B0) в мВ.
+        if(HIH5030) humAdc  = adcTomV(adc[1]);      // Channel 9 (Port B1) в мВ.
         adc[0] = 0; adc[1] = 0;
 // ----------- ************************************** --------------------------------------------------
         //-- перевіримо чи настав інший день --------------

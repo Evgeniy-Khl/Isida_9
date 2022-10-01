@@ -5,7 +5,7 @@
 
 extern int8_t displmode, countsec, disableBeep, keynum;
 extern uint8_t ok0, ok1, psword, setup, servis, cardOk;
-extern int16_t buf, currAdc;
+extern int16_t buf, currAdc, humAdc;
 
 //------- Светодиодная индикация --------------------------------------------------------- 
 // 0-нагрев, 1-увлаж.,2-заслонка,3-дополнит.,4-лотки,5-,6-программа,7-SD карта
@@ -141,14 +141,10 @@ void displ_3(int16_t val, int8_t mode, int8_t blink){
 		default:      chr=SIMBL_BL;
 	}
   switch (blink){
-  	case 2: if(countsec&1){val=0; chr=SIMBL_BL;} break;// мигание дисплея
-  	case 1: if(countsec&1){val=0; chr=SIMBL_BL;} // мигание дисплея
+  	case 2: if(countsec&1){val=0; chr=SIMBL_BL;} break; // мигание дисплея без звука
+  	case 1: if(countsec&1){val=0; chr=SIMBL_BL;}        // мигание дисплея со звуком
             else if(disableBeep==0) beeper_ON(DURATION*5);
   		break;
-  }
-  if(blink==1){
-    if(countsec&1){val=0+0xA; chr=SIMBL_BL;} // мигание дисплея
-    else if(disableBeep==0) beeper_ON(DURATION*5);
   }
 	if (val<100){
 		if (val==-10){
@@ -202,7 +198,8 @@ void display(struct eeprom *t, struct rampv *ram){
     //-------------------t1;--------------------t2;------------------"d2"---------
     case 2: displ_1(ram->pvT[1],COMMA); displ_2(ram->pvT[2],COMMA); xx=displmode; yy=DISPL; blink=0; break;
     //--------------- CO2 ------------------------ flap ----------------------"d3"------------------
-    case 3: displ_1(ram->pvCO2[0]/10,NOCOMMA); displ_2(ram->pvFlap,NOCOMMA); xx=displmode; yy=DISPL; blink=0; break;
+//    case 3: displ_1(ram->pvCO2[0]/10,NOCOMMA); displ_2(ram->pvFlap,NOCOMMA); xx=displmode; yy=DISPL; blink=0; break;
+    case 3: displ_1(currAdc,NOCOMMA); displ_2(humAdc,NOCOMMA); xx=displmode; yy=DISPL; blink=0; break;
   }
   if(ok0>1) if(countsec&1) clr_1();
   if(ok1>1) if(countsec&1) clr_2();
