@@ -325,13 +325,13 @@ int main(void)
         HAL_ADC_Start_DMA(&hadc1, (uint32_t*)&adc, 2);
         while(flag==0);
         flag = 0;
-        currAdc = adcTomV(adc[0]);                  // Channel 8 (Port B0) в мВ.
-//        if(HIH5030) humAdc  = adcTomV(adc[1]);      // Channel 9 (Port B1) в мВ.
-        humAdc  = adcTomV(adc[1]);
+        currAdc = adcTomV(adc[0]);      // Channel 8 (Port B0) в мВ.
+        humAdc  = adcTomV(adc[1]);      // Channel 9 (Port B1) в мВ.
+//        if(HIH5030) humAdc  = adcTomV(adc[1]);
         adc[0] = 0; adc[1] = 0;
 // ----------- ************************************** --------------------------------------------------
         //-- перевіримо чи настав інший день --------------
-        if (((sTime.Hours+sTime.Minutes+sTime.Seconds)<=4)){  //??????????????????????????????????
+        if (((sTime.Hours+sTime.Minutes+sTime.Seconds)<=4)){
           writeDateToBackup(RTC_BKP_DR1);             // сохраним обновленную дату
           sprintf(fileName,"%02u_%02u_%02u.txt",sDate.Year,sDate.Month,sDate.Date);
         }
@@ -339,10 +339,10 @@ int main(void)
         temperature_check(&upv.pv);
         if(AM2301) am2301_Read(&upv.pv, eep.sp.spRH[0]);
         else if(HIH5030){ 
-           if(humAdc > 500){                          // humAdc => 500 mV для RH=0%
-              upv.pv.pvRH = mVToRH(humAdc, eep.sp.spRH[0], upv.pv.pvT[0]);  // перевод в десятичное значение относительной влажности (%)
+           if(humAdc > 500){                                                // humAdc = 500 mV для RH=0%
+              upv.pv.pvRH = mVToRH(humAdc, eep.sp.spRH[0], upv.pv.pvT[0]);  // расчет относительной влажности % (мВ.,коррекция,температура)
            }
-           else upv.pv.pvRH = 255;
+           else upv.pv.pvRH = 1999;
         }
   //---------------------- Состояние дверей; "подгототка к ОХЛАЖДЕНИЮ"; "подгототка к ВКЛЮЧЕНИЮ" --------------------------------------------------
         chkdoor(&eep.sp, &upv.pv);

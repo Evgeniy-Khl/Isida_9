@@ -243,10 +243,10 @@ void display_setup(struct eeprom *t){
 
 void display_servis(struct rampv *ram){
 	switch (servis){
-		case 1: displ_1(currAdc,COMMA); clr_2(); break;     // C1 -> НАГРЕВ; Сила тока
-		case 2: displ_1(ram->pvRH,NOCOMMA); /*displ_2(read_adc(3),NOCOMMA);*/ break;   // C2 -> ВЛАЖНОСТЬ; значение АЦП
-		case 3: displ_1(ram->pvCO2[0],NOCOMMA); displ_2(ram->pvFlap,NOCOMMA); break;      // C3 -> ЗАСЛОНКА; СО2, СЕРВОПРИВОД град.
-		case 8: displ_1(buf,COMMA); clr_2(); break;                           // C8 -> Уставка форсированного нагрева
+		case 1: displ_1(currAdc,COMMA); clr_2(); break;                               // C1 -> НАГРЕВ; Сила тока
+		case 2: displ_1(ram->pvRH,NOCOMMA); displ_2(humAdc,NOCOMMA); break;           // C2 -> ВЛАЖНОСТЬ; значение АЦП
+		case 3: displ_1(ram->pvCO2[0],NOCOMMA); displ_2(ram->pvFlap,NOCOMMA); break;  // C3 -> ЗАСЛОНКА; СО2, СЕРВОПРИВОД град.
+		case 8: displ_1(buf,COMMA); clr_2(); break;                                   // C8 -> Уставка форсированного нагрева
 		default: displ_1(buf,NOCOMMA); clr_2();
 	}
 	displ_3(servis,SERVIS,0);
