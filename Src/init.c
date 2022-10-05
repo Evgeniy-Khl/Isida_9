@@ -11,7 +11,6 @@
 extern uint8_t ds18b20_amount, modules, pvTimer, pvAeration, topUser, card;
 extern int16_t humAdc;
 extern float PVold1, PVold2;
-uint8_t bluetoothName(void);
 
 void init(struct eeprom *t, struct rampv *ram){
  int8_t err;
@@ -61,7 +60,7 @@ void init(struct eeprom *t, struct rampv *ram){
   err=0;
   if(t->KoffCurr==0)  err|=1;   // E01 - ОТКЛЮЧЕН мониторинг тока симистора
   if(My_LinkDriver()) err|=2;   // E02 - ошибка инициализация SD карты 
-  if(bluetoothName()) err|=4;   // E04 - инициализация BlueTooth
+//  if(xxx) err|=4;   // E04 - инициализация 
 //==============================================================
   setChar(3,SIMBL_E); setChar(4,err/10); setChar(5,err); // "E00"
   setChar(6,DISPL_MINUS); setChar(7,DISPL_MINUS);  // "--"

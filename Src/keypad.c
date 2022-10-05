@@ -257,7 +257,7 @@ void checkkey(struct eeprom *t, int16_t pvT0){
            case KEY_6:   psword=0; displmode=0; buf=0; t->condition &=0xE7; servis=0; waitkey=WAITCOUNT; beeper_ON(DURATION*10); break;// РЕЖИМЫ ОТКЛЮЧЕНЫ
            case KEY_7:   disableBeep=10; alarmErr = abs(t->spT[0]-pvT0); break;      // тревога отключена на 10 мин.
            case KEY_8:   disableBeep=10; alarmErr = abs(t->spT[0]-pvT0); break;      // тревога отключена на 10 мин.
-           case KEY_7_8: t->condition |=0x08; beeper_ON(DURATION*2); break;              // ГОРИЗОНТ ВКЛЮЧЕН !!
+           case KEY_7_8: t->condition |=0x08; beeper_ON(DURATION*2); break;          // ГОРИЗОНТ ВКЛЮЧЕН !!
            case KEY_8_6: if((t->condition&7)==1){t->condition |=0x02; beeper_ON(DURATION*2);} break; // ВКЛЮЧИТЬ Режим "подгототка к ОХЛАЖДЕНИЮ"
 //           case KEY_7_6: pvTimer=1; rotate_trays(); break;                         // принудительный поворот
           };

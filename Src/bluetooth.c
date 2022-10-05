@@ -60,13 +60,13 @@ void bluetoothCallback(void){
   HAL_UART_Receive_IT(&huart1,(uint8_t*)bluetoothData.RXBuffer,2);
 }
 
-uint8_t bluetoothName(void){
+uint8_t bluetoothName(uint8_t number){
  char str1[20];
  uint8_t sizeX;
-  sprintf(str1,"AT+NAMEIsida 01\r\n");//
+  sprintf(str1,"AT+NAMEISIDA %02u\r\n",number);
   sizeX=strlen(str1);
   bluetoothData.ind = 0;
-  ret_stat = HAL_UART_Transmit(&huart1, (uint8_t*)str1, sizeX, 0x1000);  // Передача команды str=[AT+NAME=<>]
+  ret_stat = HAL_UART_Transmit(&huart1, (uint8_t*)str1, sizeX, 0x1000);  // Передача команды str=[AT+NAME<>\r\n]
   return ret_stat;
 }
 

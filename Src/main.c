@@ -185,6 +185,7 @@ void checkkey(struct eeprom *t, int16_t pvT0);
 void chkdoor(struct eeprom *t, struct rampv *ram);
 void init(struct eeprom *t, struct rampv *ram);
 uint8_t SD_write (const char* flname, struct eeprom *t, struct rampv *ram);
+uint8_t bluetoothName(uint8_t number);
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -489,11 +490,14 @@ int main(void)
                 if(cardOk) SD_write(fileName, p_eeprom, p_rampv); else My_LinkDriver();  // ????????????????????????????????????????????
                 if(eep.sp.condition&0x80) rotate_trays(eep.sp.timer[0], eep.sp.timer[1], &upv.pv); // ѕоворот лотков при ќ“ Ћё„≈ЌЌќ… камере
                }
-  //--------------------------------------------------------------------------------------------------------------------------------------------
             }
         }
+ //--------------------------------------------------------------------------------------------------------------------------------------------       
         if(waitset){
-          if(--waitset==0) {if(EEPSAVE) eep_write(0x0000, eep.data); servis=0;setup=0;displmode=0;psword=0;buf=0;topUser=TOPUSER;botUser=BOTUSER;}// возвращ€емс€ к основному экрану, сброс парол€ 
+          if(--waitset==0){
+            if(EEPSAVE) eep_write(0x0000, eep.data);                                      // запись в энергонезависимую пам€ть
+            if(servis==7) bluetoothName(eep.sp.identif);                                  // коррекци€ Broadcast name 
+            servis=0;setup=0;displmode=0;psword=0;buf=0;topUser=TOPUSER;botUser=BOTUSER;} // возвращ€емс€ к основному экрану, сброс парол€ 
         }
         if(TURN && eep.sp.timer[1]){if(--upv.pv.pvTimer==0) { upv.pv.pvTimer=eep.sp.timer[0]; TURN = OFF;}} // только при sp[1].timer>0 -> асиметричный режим
         // ---------------------------------------------------------------------------------------------------------------------------------------------------
