@@ -259,7 +259,7 @@ int main(void)
   /* USER CODE BEGIN 2 */
   set_Output();
 	HAL_TIM_Base_Start_IT(&htim4);	/* ------  таймер 1√ц.   период 1000 мс.  ----*/
-	HAL_TIM_Base_Start_IT(&htim3);	/* ------  таймер 6√ц.   период 166 мс.  ----*/
+	HAL_TIM_Base_Start_IT(&htim3);	/* ------  таймер 8√ц.   период 125 мс.  ----*/
   HAL_ADCEx_Calibration_Start(&hadc1);            // калибровкa ј÷ѕ
   HAL_UART_Receive_IT(&huart1,(uint8_t*)bluetoothData.RXBuffer,2);
   HAL_GPIO_WritePin(LED_GPIO_Port, LED_Pin, GPIO_PIN_SET);  // LED Off
