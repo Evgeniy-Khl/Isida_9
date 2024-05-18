@@ -1,7 +1,7 @@
 [PreviousGenFiles]
-HeaderPath=E:/!PROJECTS/!STM32/2023/ISIDA9/Inc
+HeaderPath=E:/!PROJECTS/!STM32/ISIDA9/2024/Inc
 HeaderFiles=stm32f1xx_it.h;stm32f1xx_hal_conf.h;main.h;ffconf.h;user_diskio.h;fatfs.h;
-SourcePath=E:/!PROJECTS/!STM32/2023/ISIDA9/Src
+SourcePath=E:/!PROJECTS/!STM32/ISIDA9/2024/Src
 SourceFiles=stm32f1xx_it.c;stm32f1xx_hal_msp.c;main.c;user_diskio.c;fatfs.c;
 
 [PreviousLibFiles]

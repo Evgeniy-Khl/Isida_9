@@ -5,6 +5,8 @@ extern struct eeprom *p_eeprom;
 extern uint8_t waitset;
 extern HAL_StatusTypeDef ret_stat;
 
+struct bluetooth bluetoothData;
+
 void data_parse(struct eeprom *t){
 //    HAL_GPIO_WritePin(LED_GPIO_Port, LED_Pin, GPIO_PIN_RESET);  // LED On
 //    HAL_GPIO_TogglePin(LED_GPIO_Port, LED_Pin);

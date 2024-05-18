@@ -65,6 +65,7 @@ TIM_HandleTypeDef htim3;
 TIM_HandleTypeDef htim4;
 
 UART_HandleTypeDef huart1;
+UART_HandleTypeDef huart3;
 
 /* USER CODE BEGIN PV */
 RTC_TimeTypeDef sTime;
@@ -75,17 +76,15 @@ char fileName[15]={0};
 union Byte portOut;
 union Byte portFlag;
 
+union {
+  uint8_t data[4];  
+  uint16_t crc; 
+} un;
+
 extern uint8_t ds18b20_amount, disableBeep, topOwner, topUser, botUser, ok0, ok1, psword, pvAeration;
 extern int16_t buf, valRun;
-
-struct {
-  uint8_t RXBuffer[2];
-  uint8_t TXBuffer[2];
-  uint8_t buf[60];
-  uint8_t ind;
-  uint8_t timeOut;
-  uint8_t devOk;
-} bluetoothData;
+extern struct rs485 rs485Data;
+extern struct bluetooth bluetoothData;
 
 extern struct {
   uint8_t eepAddr;
@@ -127,7 +126,7 @@ union pointvalue{
   } pv;// ------------------ ИТОГО 20 bytes -------------------------------
 } upv;
 struct rampv *p_rampv = &upv.pv;
-
+uint8_t *p_ramdata = upv.pvdata;
 /* ----------------------------- BEGIN EEPROM ------------------------------------------- */
 union serialdata{
   uint8_t data[EEP_DATA];
@@ -163,6 +162,7 @@ union serialdata{
   } sp;                 // ------------------ ИТОГО 40 bytes -------------------------------
 } eep;
 struct eeprom *p_eeprom = &eep.sp;
+uint8_t *p_eepdata = eep.data;
 /* ------------------------------ END EEPROM -------------------------------------------- */
 #include "output.h"
 #include "displ.h"
@@ -186,8 +186,6 @@ void checkkey(struct eeprom *t, int16_t pvT0);
 //void pushkey(void);
 void chkdoor(struct eeprom *t, struct rampv *ram);
 void init(struct eeprom *t, struct rampv *ram);
-uint8_t SD_write (const char* flname, struct eeprom *t, struct rampv *ram);
-uint8_t bluetoothName(uint8_t number);
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -202,8 +200,11 @@ static void MX_SPI2_Init(void);
 static void MX_USART1_UART_Init(void);
 static void MX_SPI1_Init(void);
 static void MX_RTC_Init(void);
+static void MX_USART3_UART_Init(void);
 /* USER CODE BEGIN PFP */
-
+void rs485Callback(uint8_t *p_ramdata, uint8_t *p_eepdata);
+uint8_t SD_write (const char* flname, struct eeprom *t, struct rampv *ram);
+uint8_t bluetoothName(uint8_t number);
 /* USER CODE END PFP */
 
 /* Private user code ---------------------------------------------------------*/
@@ -258,6 +259,7 @@ int main(void)
   MX_SPI1_Init();
   MX_FATFS_Init();
   MX_RTC_Init();
+  MX_USART3_UART_Init();
   /* USER CODE BEGIN 2 */
   set_Output();
 	HAL_TIM_Base_Start_IT(&htim4);	/* ------  таймер 1Гц.   период 1000 мс.  ----*/
@@ -308,20 +310,19 @@ int main(void)
 
   init(&eep.sp, &upv.pv);   // инициализация аппаратной части и подключаемых модулей
   temperature_check(&upv.pv);
+  un.data[2] = 0x0D; un.data[3] = 0x0A; // "[0x0D]->\r=<CR>; [0x0A]->\n=<LF>"
   /* USER CODE END 2 */
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
   getButton = waitkey/4;
-	while (1)
-	{
+	while (1){
   //----------------------------------- Теперь будем опрашивать три канала на одном АЦП с помощью DMA… -------------------------------------------
 
-  /* ------------------------------------------- BEGIN таймер TIM3 6 Гц. ----------------------------------------------------------------------- */
+  /*** ------------------------------------------- BEGIN таймер TIM3 6 Гц. ----------------------------------------------------------------------- ***/
       if (getButton>waitkey/4) checkkey(&eep.sp, upv.pv.pvT[0]);  // клавиатура
-  /* -------------------------------------------- END таймер TIM3 6 Гц. ------------------------------------------------------------------------ */
 
-  /* ------------------------------------------- BEGIN таймер TIM4 1 Гц. ----------------------------------------------------------------------- */
+  /*** ------------------------------------------- BEGIN таймер TIM4 1 Гц. ----------------------------------------------------------------------- ***/
       if(CHECK){   // ------- новая секунда --------------------------------------------------------------
         CHECK=0; DISPLAY=1; ALARM=0; upv.pv.errors=0; upv.pv.warning=0;
         HAL_ADC_Start_DMA(&hadc1, (uint32_t*)&adc, 2);
@@ -331,13 +332,14 @@ int main(void)
         humAdc  = adcTomV(adc[1]);      // Channel 9 (Port B1) в мВ.
 //        if(HIH5030) humAdc  = adcTomV(adc[1]);
         adc[0] = 0; adc[1] = 0;
-// ----------- ************************************** --------------------------------------------------
-        //-- перевіримо чи настав інший день --------------
+
+    //-------------------- перевіримо чи настав інший день ------------
         if (((sTime.Hours+sTime.Minutes+sTime.Seconds)<=4)){
           writeDateToBackup(RTC_BKP_DR1);             // сохраним обновленную дату
           sprintf(fileName,"%02u_%02u_%02u.txt",sDate.Year,sDate.Month,sDate.Date);
         }
-        //-------------------------------------------------
+    //-------------------- температура и влажность --------------------
+
         temperature_check(&upv.pv);
         if(AM2301) am2301_Read(&upv.pv, eep.sp.spRH[0]);
         else if(HIH5030){ 
@@ -346,10 +348,10 @@ int main(void)
            }
            else upv.pv.pvRH = 200;
         }
-  //---------------------- Состояние дверей; "подгототка к ОХЛАЖДЕНИЮ"; "подгототка к ВКЛЮЧЕНИЮ" --------------------------------------------------
+    //-------------------- Состояние дверей; "подгототка к ОХЛАЖДЕНИЮ"; "подгототка к ВКЛЮЧЕНИЮ" --
         chkdoor(&eep.sp, &upv.pv);
         if((eep.sp.state&0x18)==0x08) eep.sp.state|= sethorizon(eep.sp.timer[0], eep.sp.turnTime, &upv.pv);  // Установка в горизонтальное положение
-  //------------------------------------------ Опрос модулей расширения ---------------------------------------------------------------------------
+    //-------------------- Опрос модулей расширения -------------------
         if(modules&1) {
           tmpbyte = chkcooler(eep.sp.state);
           if(tmpbyte<0) upv.pv.errors |= 0x40;        // Отказ модуля Холла
@@ -368,9 +370,9 @@ int main(void)
           tmpbyte = chkflap(0,&upv.pv.flap);
           if(tmpbyte<0) upv.pv.errors |= 0x20;        // Отказ модуля заслонок
         }
-  //------------------------------------------ КАМЕРА ВКЛЮЧЕНА в работу ---------------------------------------------------------------------------
+    //-------------------- КАМЕРА ВКЛЮЧЕНА в работу -------------------
         if (eep.sp.state&1){
-          // --------------------------------------- НАГРЕВАТЕЛЬ -----------------------------------------------------------------
+      // ---------------------- НАГРЕВАТЕЛЬ --------------------------------
           if(HAL_GPIO_ReadPin(OVERHEAT_GPIO_Port, OVERHEAT_Pin)==GPIO_PIN_RESET) upv.pv.errors |= 0x10;  // ПЕРЕГРЕВ СИМИСТОРА !!!
           else if((upv.pv.warning&0x20)==0){    // НЕТ ОСТАНОВА тихоходного вентилятора !!!
             if(upv.pv.pvT[0] < 850){
@@ -384,7 +386,7 @@ int main(void)
           upv.pv.power = pwTriac0 / 10;
           if(upv.pv.power > 100) upv.pv.power = 100;
           statPw[0] += upv.pv.power;      // расчет эконометра
-          // --------------------------------------- УВЛАЖНИТЕЛЬ -----------------------------------------------------------------
+      // ---------------------- УВЛАЖНИТЕЛЬ --------------------------------
           if(ok0&1){  // отключение УВЛАЖНЕНИЯ при РАЗОГРЕВЕ и ПЕРЕОХЛАЖДЕНИИ
             if(HIH5030||AM2301){  // подключен электронный датчик влажности
               int16_t err = eep.sp.spRH[1] - upv.pv.pvRH;
@@ -411,7 +413,7 @@ int main(void)
             if(tmpbyte > 100) tmpbyte = 100;
             statPw[1] += tmpbyte;         // расчет эконометра
           }
-          // --------------------------------------- ОХЛАЖДЕНИЕ -----------------------------------------------------------------
+      // ---------------------- ОХЛАЖДЕНИЕ ---------------------------------
           if(upv.pv.warning&0x20) tmpbyte = ON;     // ОСТАНОВ тихоходного вентилятора
           else {
             if(upv.pv.pvT[0] < 850){
@@ -425,9 +427,9 @@ int main(void)
             case ON:  FLAP = ON;  upv.pv.flap = FLAPOPEN;  if(modules&8) chkflap(SETFLAP,  &upv.pv.flap); break;// установка заслонки
             case OFF: FLAP = OFF; upv.pv.flap = FLAPCLOSE; if(modules&8) chkflap(DATAREAD, &upv.pv.flap); break;// установка заслонки; сброс флага запрещения принудительной подачи воды
           }
-          // --------------------------------------- ВСПОМОГАТЕЛЬНЫЙ -----------------------------------------------------------------
+      // ---------------------- ВСПОМОГАТЕЛЬНЫЙ ----------------------------
           extra_2(&eep.sp, &upv.pv);
-  //---------------------------------------- ЗОНАЛЬНОСТЬ температуры камеры -----------------------------------------------------------------------
+      //----------------------- ЗОНАЛЬНОСТЬ температуры камеры -------------
             if(ok0){
                 if(HIH5030||AM2301) {if(ds18b20_amount>1) {if(abs(upv.pv.pvT[0]-upv.pv.pvT[1])>eep.sp.zonality) upv.pv.warning |=0x08;}} // Большой перепад температур.
                 else     {if(ds18b20_amount>2) {if(abs(upv.pv.pvT[0]-upv.pv.pvT[2])>eep.sp.zonality) upv.pv.warning |=0x08;}};// Большой перепад температур.
@@ -439,7 +441,7 @@ int main(void)
               }
               else upv.pv.errors |= 0x02;   // ОШИБКА ДАТЧИКА влажности !!!
             }
-  //--------------------------------------- ПОВОРОТ ЛОТКОВ Статистика камеры ----------------------------------------------------------------------
+      //----------------------- ПОВОРОТ ЛОТКОВ Статистика камеры -----------
             if(eep.sp.koffCurr){
             // конверсия mV в mA ->100mV/1A+1.65V. (5A->0.5+1.65=2.15; 10A->2.65; 20A->3.65) добавляем делитель 110k/68k на 2,65 и получаем 10А = 1В = 1000 мВ
               currAdc *= eep.sp.koffCurr; currAdc /= 100;
@@ -470,7 +472,7 @@ int main(void)
               }
             } 
         }
- //---------------------------------------------- КАМЕРА ОТКЛЮЧЕНА -------------------------------------------------------------------------------
+    //--------------------- КАМЕРА ОТКЛЮЧЕНА ---------------------------
         else if((eep.sp.state&7)==0){
             if(eep.sp.relayMode==4) valRun = 0;                            // ОТКЛЮЧИТЬ импульсное управление увлажнителем
             if(servis){                                                   // включен СЕРВИСНЫЙ режим
@@ -494,7 +496,7 @@ int main(void)
                }
             }
         }
- //--------------------------------------------------------------------------------------------------------------------------------------------       
+    //--------------------- если нужно сохраняем установки -------------
         if(waitset){
           if(--waitset==0){
             if(EEPSAVE) eep_write(0x0000, eep.data);                                      // запись в энергонезависимую память
@@ -502,26 +504,34 @@ int main(void)
             servis=0;setup=0;displmode=0;psword=0;buf=0;topUser=TOPUSER;botUser=BOTUSER;} // возвращяемся к основному экрану, сброс пароля 
         }
         if(TURN && eep.sp.timer[1]){if(--upv.pv.nextTurn==0) { upv.pv.nextTurn=eep.sp.timer[0]; TURN = OFF;}} // только при sp[1].timer>0 -> асиметричный режим
-        // ---------------------------------------------------------------------------------------------------------------------------------------------------
+    
+    // -------------------- Bluetooth ----------------------------------
         if(HAL_GPIO_ReadPin(Bluetooth_STATE_GPIO_Port, Bluetooth_STATE_Pin)){ // если есть подключение по Bluetooth
-          HAL_UART_Transmit(&huart1,(uint8_t*)upv.pvdata,20,0x1000);
-          HAL_UART_Transmit(&huart1,(uint8_t*)eep.data,40,0x1000);
-//          for(tmpbyte=0;tmpbyte<60;tmpbyte++){bluetoothData.buf[tmpbyte]=tmpbyte;}
-//          HAL_UART_Transmit(&huart1,(uint8_t*)bluetoothData.buf,60,0x1000);
-          bluetoothData.TXBuffer[0] = 0x0D;  bluetoothData.TXBuffer[1] = 0x0A;  // "\r=<CR>-\n=<LF>"
-          HAL_UART_Transmit(&huart1,(uint8_t*)bluetoothData.TXBuffer,2,0x1000);
+          un.crc = 0;
+          for(uint8_t i=0;i<20;i++){
+            un.crc += upv.pvdata[i];
+            un.crc ^= (un.crc>>2);
+          }
+          for(uint8_t i=0;i<40;i++){
+            un.crc += eep.data[i];
+            un.crc ^= (un.crc>>2);
+          }
+          HAL_UART_Transmit(&huart1,(uint8_t*)upv.pvdata,20,0x1000);// отправка upv
+          HAL_UART_Transmit(&huart1,(uint8_t*)eep.data,40,0x1000);  // отправка eep
+          HAL_UART_Transmit(&huart1,(uint8_t*)un.data,4,0x1000);    // отправка crc, "\r=<CR>, \n=<LF>"
         }
-//        else if(rx_buffer_overflow) check_command();      // если установлен флаг - "комманда компьютера"
       }
-  /* ============================================= END таймер TIM4 1 Гц. ======================================================================= */
-      
-      if(DISPLAY){/* ---------------- ИНДИКАЦИЯ ------------------------------------------------- */
+  /*** ============================================= END таймер TIM4 1 Гц. ==================================================================== ***/
+
+  /*** --------------------------------------------------- ИНДИКАЦИЯ -------------------------------------------------------------------------- ***/
+      if(DISPLAY){
         DISPLAY = 0;
         if(setup) display_setup(&eep.sp);
         else if(servis) display_servis(&upv.pv);
         else display(&eep.sp, &upv.pv);
         ledOut(eep.sp.state, upv.pv.warning, upv.pv.fuses); SendDataTM1638(); set_Output();
-      }  
+      }
+  /*** ======================================================================================================================================== ***/
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
@@ -535,6 +545,30 @@ int main(void)
       }
       if(LEDOFF) {LEDOFF = 0; ledOut(eep.sp.state, upv.pv.warning, upv.pv.fuses); SendDataTM1638(); set_Output();}
       if(beepOn < 0) {beepOn=0; HAL_GPIO_WritePin(Beeper_GPIO_Port, Beeper_Pin, GPIO_PIN_RESET);}  // Beeper Off
+  /* ------------------------------------------------------------------------------------------------------------------ */
+      if(bluetoothData.ind == 0){
+        bluetoothData.timeOut=0;
+        HAL_UART_Receive_IT(&huart1,(uint8_t*)bluetoothData.RXBuffer,2); // запуск приема (100 байт при 9600 b/s Время передачи данных 0,1 сек.)
+      }
+      else if(bluetoothData.timeOut > 5) {
+        // ошибка таймаута больше 500 mS.
+        HAL_UART_AbortReceive_IT(&huart1); // остановка приема (https://www.translatorscafe.com/unit-converter/ru-RU/calculator/data-transfer-time/)
+        bluetoothData.ind = 0; // признак ожидание первого байта
+        bluetoothData.timeOut = 0;
+      }
+  // ---------------------------- RS485 -----------------------------
+      if(rs485Data.ind == 0){
+          rs485Data.timeOut=0;
+          HAL_UART_Receive_IT(&huart3,(uint8_t*)rs485Data.RXBuffer,16); // запуск приема (100 байт при 9600 b/s Время передачи данных 0,1 сек.)
+      }
+      else if(rs485Data.timeOut > 5) {
+          // ошибка таймаута больше 500 mS.
+          HAL_UART_AbortReceive_IT(&huart3); // остановка приема (https://www.translatorscafe.com/unit-converter/ru-RU/calculator/data-transfer-time/)
+          rs485Data.ind = 0; // признак ожидание первого байта
+          rs485Data.timeOut = 0;
+      }
+  /* ================================================================================================================== */
+      
       if(bluetoothData.ind == 0){
         bluetoothData.timeOut=0;
         HAL_UART_Receive_IT(&huart1,(uint8_t*)bluetoothData.RXBuffer,2); // запуск приема
@@ -912,6 +946,39 @@ static void MX_USART1_UART_Init(void)
 
 }
 
+/**
+  * @brief USART3 Initialization Function
+  * @param None
+  * @retval None
+  */
+static void MX_USART3_UART_Init(void)
+{
+
+  /* USER CODE BEGIN USART3_Init 0 */
+
+  /* USER CODE END USART3_Init 0 */
+
+  /* USER CODE BEGIN USART3_Init 1 */
+
+  /* USER CODE END USART3_Init 1 */
+  huart3.Instance = USART3;
+  huart3.Init.BaudRate = 9600;
+  huart3.Init.WordLength = UART_WORDLENGTH_8B;
+  huart3.Init.StopBits = UART_STOPBITS_1;
+  huart3.Init.Parity = UART_PARITY_NONE;
+  huart3.Init.Mode = UART_MODE_TX_RX;
+  huart3.Init.HwFlowCtl = UART_HWCONTROL_NONE;
+  huart3.Init.OverSampling = UART_OVERSAMPLING_16;
+  if (HAL_UART_Init(&huart3) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  /* USER CODE BEGIN USART3_Init 2 */
+
+  /* USER CODE END USART3_Init 2 */
+
+}
+
 /** 
   * Enable DMA controller clock
   */
@@ -1036,6 +1103,7 @@ void HAL_ADC_ConvCpltCallback(ADC_HandleTypeDef* hadc){
 }
 void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart){
   if(huart==&huart1) bluetoothCallback();
+  else if(huart==&huart3) rs485Callback(p_ramdata, p_eepdata);
 }
 /* USER CODE END 4 */
 

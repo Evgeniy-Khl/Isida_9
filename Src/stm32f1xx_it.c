@@ -64,6 +64,8 @@ extern TIM_HandleTypeDef htim3;
 extern TIM_HandleTypeDef htim4;
 extern UART_HandleTypeDef huart1;
 /* USER CODE BEGIN EV */
+extern struct rs485 rs485Data;
+extern struct bluetooth bluetoothData;
 extern uint8_t getButton, countsec;
 extern int16_t beepOn, pwTriac0, pwTriac1, pulsPeriod;
 /* USER CODE END EV */

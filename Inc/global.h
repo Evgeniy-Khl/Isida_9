@@ -1,14 +1,6 @@
 /* Define to prevent recursive inclusion -------------------------------------*/
 #ifndef __GLOBAL_H
 #define __GLOBAL_H
-extern struct {
-  uint8_t RXBuffer[2];
-  uint8_t TXBuffer[2];
-  uint8_t buf[60];
-  uint8_t ind;
-  uint8_t timeOut;
-  uint8_t devOk;
-} bluetoothData;
 
 extern struct rampv {
     uint8_t model;       // 1 байт ind=0  модель прибора

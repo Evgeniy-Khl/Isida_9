@@ -83,6 +83,10 @@ void Error_Handler(void);
 #define ADC_CURR_GPIO_Port GPIOB
 #define ADC_HUM_Pin GPIO_PIN_1
 #define ADC_HUM_GPIO_Port GPIOB
+#define RS485_TX_Pin GPIO_PIN_10
+#define RS485_TX_GPIO_Port GPIOB
+#define RS485_RX_Pin GPIO_PIN_11
+#define RS485_RX_GPIO_Port GPIOB
 #define OUT_RCK_Pin GPIO_PIN_12
 #define OUT_RCK_GPIO_Port GPIOB
 #define DISPL_STB_Pin GPIO_PIN_14
@@ -229,6 +233,29 @@ union Byte {
     unsigned char value;
     struct byte bitfield;
 };
+
+union d2v{
+    uint8_t data[2];
+    uint16_t val;
+  };
+
+struct rs485{
+  uint8_t RXBuffer[16];
+  uint8_t TXBuffer[96];
+  uint8_t ind;
+  uint8_t timeOut;
+  uint8_t err;
+};
+
+struct bluetooth{
+  uint8_t RXBuffer[2];
+  uint8_t TXBuffer[2];
+  uint8_t buf[60];
+  uint8_t ind;
+  uint8_t timeOut;
+  uint8_t err;
+} ;
+
 
 #define CHECK   portFlag.bitfield.a0  // Start of all checks
 #define ALARM   portFlag.bitfield.a1  // Alarm flag
