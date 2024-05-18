@@ -19,10 +19,10 @@ float stold[2][2];
 
 void rotate_trays(uint8_t timer0, uint8_t timer1, struct rampv *ram){ // симистричный таймер
   uint8_t result;
-  if(--ram->pvTimer==0){
-    if(TURN) {ram->pvTimer=timer0; result = OFF;}
-    else if(timer1) {ram->pvTimer=timer1; result = ON;} 
-    else {ram->pvTimer=timer0; result = ON;}
+  if(--ram->nextTurn==0){
+    if(TURN) {ram->nextTurn=timer0; result = OFF;}
+    else if(timer1) {ram->nextTurn=timer1; result = ON;} 
+    else {ram->nextTurn=timer0; result = ON;}
     cmdmodule=NEW_TURN;
     if(ram->fuses&0x08) result = OFF;      // ПРЕДОХРАНИТЕЛЬ реле поворотов
     switch (result){
@@ -46,18 +46,18 @@ void aeration_check(uint8_t air0, uint8_t air1){ // ПРОВЕТРИВАНИЕ
   else {if(--pvAeration==0) {pvAeration=air1; VENTIL = ON;}}
 }
 
-uint8_t sethorizon(uint8_t timer0, uint8_t TurnTime, struct rampv *ram){ // установка в горизонт
+uint8_t sethorizon(uint8_t timer0, uint8_t turnTime, struct rampv *ram){ // установка в горизонт
  uint8_t state=0;
  static uint8_t counter=0;
   if(counter) --counter;                                   // ожижание прохода лотков TIMETURN
   if(counter==0){
      if (TURN){                                            // если лотки в ВЕРХНЕМ положении то сразу в горизонт
-        ram->pvTimer=timer0; state = 0x10; TURN = OFF;     // ГОРИЗОНТ УСТАНОВЛЕН
+        ram->nextTurn=timer0; state = 0x10; TURN = OFF;     // ГОРИЗОНТ УСТАНОВЛЕН
         cmdmodule=SETHORIZON;                              // команда дополнительному модулю
      }
      else {
       if((ram->fuses&0x08)==0) TURN = ON;      // ПРЕДОХРАНИТЕЛЬ реле поворотов 
-      counter=TurnTime;
+      counter=turnTime;
      }                   // если лотки в НЕЖНЕМ положении то разгрузка лотков
   }
   return state;
@@ -85,21 +85,21 @@ void chkdoor(struct eeprom *t, struct rampv *ram){
 //  doorState = 1;  //?????????????????????????????????????????????????????????
   if(doorState){  // Дверь ЗАкрыта
      ram->fuses &= 0x7F;  // Состояние дверей
-     if(t->condition&4){      //-- если "подгототка к ВКЛЮЧЕНИЮ" то включить камеру --
-        t->condition &=0xFB; t->condition |=0x01; counter = 0; countsec=-5; ok0=0; ok1=0; ram->pvFlap=FLAPCLOSE; if(modules&8) chkflap(DATAREAD, &ram->pvFlap);
+     if(t->state&4){      //-- если "подгототка к ВКЛЮЧЕНИЮ" то включить камеру --
+        t->state &=0xFB; t->state |=0x01; counter = 0; countsec=-5; ok0=0; ok1=0; ram->flap=FLAPCLOSE; if(modules&8) chkflap(DATAREAD, &ram->flap);
         if (t->extendMode==1) EXT2 = OFF; // доп. канал (extendMode==1->ВЕНТИЛЯЦИЯ)
       }
-     else if((t->condition&3)==3) {beeper_ON(DURATION/2); if(++counter>300) {t->condition &= 0xF9; counter = 0;}}//-- если превышено ожидание то снимаем "подгототка к ОТКЛЮЧЕНИЮ"
+     else if((t->state&3)==3) {beeper_ON(DURATION/2); if(++counter>300) {t->state &= 0xF9; counter = 0;}}//-- если превышено ожидание то снимаем "подгототка к ОТКЛЮЧЕНИЮ"
    }
   else { // Дверь ОТкрыта
      ram->fuses |= 0x80;  // Состояние дверей
-     if((t->condition&7)==3)  //-- если "подгототка к ОТКЛЮЧЕНИЮ" то отключить камеру --
+     if((t->state&7)==3)  //-- если "подгототка к ОТКЛЮЧЕНИЮ" то отключить камеру --
       {
-       t->condition &=0xFC; t->condition |=0x04; counter = 0; ram->power=0; HUMIDI = OFF; FLAP = ON; ram->pvFlap=FLAPOPEN; if(modules&8) chkflap(SETFLAP, &ram->pvFlap);
+       t->state &=0xFC; t->state |=0x04; counter = 0; ram->power=0; HUMIDI = OFF; FLAP = ON; ram->flap=FLAPOPEN; if(modules&8) chkflap(SETFLAP, &ram->flap);
        if (t->extendMode==1) EXT2 = ON; // доп. канал (extendMode==1->ВЕНТИЛЯЦИЯ)
       }
-     else if((t->condition&7)==1) beeper_ON(DURATION*5);//-- если камера ВКЛ. то вкл. тревогу.
-     else if(t->condition&4) {if(++counter>t->TimeOut) {beeper_ON(DURATION); ALARM = 1;}}//-- если превышено ожидание то вкл. тревогу.(Режим "подгототка к ВКЛЮЧЕНИЮ")
+     else if((t->state&7)==1) beeper_ON(DURATION*5);//-- если камера ВКЛ. то вкл. тревогу.
+     else if(t->state&4) {if(++counter>t->timeOut*10) {beeper_ON(DURATION); ALARM = 1;}}//-- если превышено ожидание то вкл. тревогу.(Режим "подгототка к ВКЛЮЧЕНИЮ")
    }
 }
 

@@ -64,14 +64,14 @@ void checkkey(struct eeprom *t, int16_t pvT0){
               switch (setup)
                {
                 case 1:  t->spT[0]=buf; break;                                                                   // У1  Уставка температуры
-                case 2:  if (HIH5030||AM2301) t->spRH[1]=buf; else t->spT[1]=buf; break;                         // У2  Уставка влажности
-                case 3:  if (buf<1) buf=1; t->timer[0]=buf; break;                                               // У3  время отключенного состояния
+                case 2:  if(HIH5030||AM2301) t->spRH[1]=buf&0x7F; else t->spT[1]=buf; break;                     // У2  Уставка влажности
+                case 3:  if(buf<1) buf=1; t->timer[0]=buf; break;                                                // У3  время отключенного состояния
                 case 4:  t->timer[1]=buf; break;                                                                 // У4  время включенного состояния (секунды)
-                case 5:  buf&=0x1F; if (buf<1) buf=1; t->alarm[0]=buf; break;                                    // У5  тревога по каналу 1
-                case 6:  buf&=0xFF; if (buf<1) buf=1; t->alarm[1]=buf; break;                                    // У6  тревога по каналу 2
-                case 7:  buf&=0x1F; if (buf<t->extOff[0]) buf=t->extOff[0]; t->extOn[0]=buf; break;              // У7  смещение для ВКЛ. вспомогательного канала 1
+                case 5:  buf&=0x1F; if(buf<1) buf=1; t->alarm[0]=buf; break;                                     // У5  тревога по каналу 1
+                case 6:  buf&=0xFF; if(buf<1) buf=1; t->alarm[1]=buf; break;                                     // У6  тревога по каналу 2
+                case 7:  buf&=0x1F; if(buf<t->extOff[0]) buf=t->extOff[0]; t->extOn[0]=buf; break;               // У7  смещение для ВКЛ. вспомогательного канала 1
                 case 8:  if(buf>t->extOn[0]) buf=t->extOn[0]; else if (buf<1) buf=1; t->extOff[0]=buf; break;    // У8  смещение для ОТКЛ. вспомогательного канала 1
-                case 9:  buf&=0x1F; if (buf<t->extOff[1]) buf=t->extOff[1]; t->extOn[1]=buf; break;              // У9  смещение для ВКЛ. вспомогательного канала 2
+                case 9:  buf&=0x1F; if(buf<t->extOff[1]) buf=t->extOff[1]; t->extOn[1]=buf; break;               // У9  смещение для ВКЛ. вспомогательного канала 2
                 case 10: if(buf>t->extOn[1]) buf=t->extOn[1]; else if (buf<1) buf=1; t->extOff[1]=buf; break;    // У10 смещение для ОТКЛ. вспомогательного канала 2
                 case 11: 
                          if(buf<1) buf=1; buf&=0xFF;
@@ -92,16 +92,16 @@ void checkkey(struct eeprom *t, int16_t pvT0){
                 case 17: if(buf) t->extendMode=1; else t->extendMode=0; break;           // расширенный режим работы  0-СИРЕНА; 1-АВАРИЙНОЕ ОТКЛЮЧЕНИЕ
                 case 18: if(buf>MAXRELAYMODE) buf=MAXRELAYMODE; else if(buf<MINRELAYMODE) buf=MINRELAYMODE; t->relayMode=buf;
                          if(t->relayMode==4) topUser=PULSMENU; else topUser=TOPUSER; break;//релейный режим работы
-                case 19: if(buf<100) buf=100; else if(buf>6000) buf=6000; t->minRun=buf; break;// ограничено 100-6000 mS;
-                case 20: if(buf<1) buf=1; else if(buf>60) buf=60; t->maxRun=buf; break;    // ограничено 1-60 секунд;
-                case 21: if(buf<5) buf=5; else if(buf>600) buf=600; t->period=buf; break;// ограничено 5-600 секунд (10 мин.);
+                case 19: if(buf<1) buf=1; t->minRun=buf; break;   // ограничено 0.1-25.5 sec.;
+                case 20: if(buf<1) buf=1; t->maxRun=buf; break;   // ограничено 1-255 секунд (4 мин.);
+                case 21: if(buf<1) buf=1; t->period=buf; break;   // ограничено 1-255 секунд (4 мин.);
                 
-                case 26: if(buf>32) buf=32; else if (buf<-64) buf=-64; t->spRH[0]=buf; break; // подстройка датчика HIH-4000
-                case 27: t->Hysteresis = buf&3; break;                                // гистерезис
-                case 28: buf&=0x03F; if(buf<1) buf=1; t->K[0]=buf; break;         // ограничено 1 - 63;
-                case 29: buf&=0x3FF; if(buf<100) buf=100; t->Ti[0]=buf; break;    // ограничено 100 - 1023;
-                case 30: buf&=0x03F; if(buf<1) buf=1; t->K[1]=buf; break;         // ограничено 1 - 63;
-                case 31: buf&=0x3FF; if(buf<100) buf=100; t->Ti[1]=buf; break;    // ограничено 100 - 1023;
+                case 26: if(buf>32) buf=32; else if (buf<-64) buf=-64; t->spRH[0]=buf; break; // подстройка датчика HIH-5030/AM2301
+                case 27: t->hysteresis = buf&3; break;                               // гистерезис
+                case 28: buf&=0x3F; if(buf<1) buf=1; t->pkoff[0]=buf; break;         // ограничено 1 - 63;
+                case 29: buf&=0x7F; if(buf<10) buf=10; t->ikoff[0]=buf; break;       // ограничено 10 - 127;
+                case 30: buf&=0x3F; if(buf<1) buf=1; t->pkoff[1]=buf; break;         // ограничено 1 - 63;
+                case 31: buf&=0x7F; if(buf<10) buf=10; t->ikoff[1]=buf; break;       // ограничено 10 - 127;
                }; 
              } break;
            case KEY_3:
@@ -114,16 +114,16 @@ void checkkey(struct eeprom *t, int16_t pvT0){
                  case 17: buf=t->extendMode; break;   // П1 = расширенный режим работы
                  case 18: buf=t->relayMode; break;    // П2 = режим ПИД/реле
                 
-                 case 19: buf=t->minRun; break;   // П3 = 1000 - 1,0 сек.
-                 case 20: buf=t->maxRun; break;   // П4 =   10 - 10,0 сек.
-                 case 21: buf=t->period; break;   // П5 =   60 - 60 сек.
+                 case 19: buf=t->minRun; break;       // П3 = 5  -> 0.5сек.
+                 case 20: buf=t->maxRun; break;       // П4 = 10 -> 10 сек.
+                 case 21: buf=t->period; break;       // П5 = 60 -> 60 сек. = 1 мин.
                  
                  case 26: buf=t->spRH[0]; break;      // П10 подстройка датчика HIH-4000
-                 case 27: buf=t->Hysteresis; break;   // П11 гистерезис канала увлажнения 
-                 case 28: buf=t->K[0]; break;         // П12 = 20
-                 case 29: buf=t->Ti[0]; break;        // П13 = 500
-                 case 30: buf=t->K[1]; break;         // П14 = 15
-                 case 31: buf=t->Ti[1]; break;        // П15 = 900
+                 case 27: buf=t->hysteresis; break;   // П11 гистерезис канала увлажнения 
+                 case 28: buf=t->pkoff[0]; break;     // П12 = 25
+                 case 29: buf=t->ikoff[0]; break;     // П13 = 90
+                 case 30: buf=t->pkoff[1]; break;     // П14 = 10
+                 case 31: buf=t->ikoff[1]; break;     // П15 = 90
                 }
              } break;
            case KEY_4:
@@ -157,19 +157,19 @@ void checkkey(struct eeprom *t, int16_t pvT0){
                          EEPSAVE=0; waitset=20;
                   break;
                 //--------------------------- Меню специалиста ---------------------------------------------------------
-                case 17: if(buf) t->extendMode=1; else t->extendMode=0; break;           // расширенный режим работы  0-СИРЕНА; 1-АВАРИЙНОЕ ОТКЛЮЧЕНИЕ
+                case 17: if(buf) t->extendMode=1; else t->extendMode=0; break;             // расширенный режим работы  0-СИРЕНА; 1-АВАРИЙНОЕ ОТКЛЮЧЕНИЕ
                 case 18: if(buf>MAXRELAYMODE) buf=MAXRELAYMODE; else if(buf<MINRELAYMODE) buf=MINRELAYMODE; t->relayMode=buf;
                          if(t->relayMode==4) topUser=PULSMENU; else topUser=TOPUSER; break;//релейный режим работы
-                case 19: if(buf<100) buf=100; else if(buf>6000) buf=6000; t->minRun=buf; break;// ограничено 100-6000 mS;
-                case 20: if(buf<1) buf=1; else if(buf>60) buf=60; t->maxRun=buf; break;    // ограничено 1-60 секунд;
-                case 21: if(buf<5) buf=5; else if(buf>600) buf=600; t->period=buf; break;// ограничено 5-600 секунд (10 мин.);
+                case 19: if(buf<1) buf=1; t->minRun=buf; break;   // ограничено 0.1-25.5 sec.;
+                case 20: if(buf<1) buf=1; t->maxRun=buf; break;   // ограничено 1-255 секунд (4 мин.);
+                case 21: if(buf<1) buf=1; t->period=buf; break;   // ограничено 1-255 секунд (4 мин.);
                 
                 case 26: if(buf>32) buf=32; else if (buf<-64) buf=-64; t->spRH[0]=buf; break; // подстройка датчика HIH-4000
-                case 27: t->Hysteresis = buf&3; break;                                // гистерезис
-                case 28: buf&=0x03F; if(buf<1) buf=1; t->K[0]=buf; break;         // ограничено 1 - 63;
-                case 29: buf&=0x3FF; if(buf<100) buf=100; t->Ti[0]=buf; break;    // ограничено 100 - 1023;
-                case 30: buf&=0x03F; if(buf<1) buf=1; t->K[1]=buf; break;         // ограничено 1 - 63;
-                case 31: buf&=0x3FF; if(buf<100) buf=100; t->Ti[1]=buf; break;    // ограничено 100 - 1023;
+                case 27: t->hysteresis = buf&3; break;                               // гистерезис ограничено 3
+                case 28: buf&=0x3F; if(buf<1) buf=1; t->pkoff[0]=buf; break;         // ограничено 1 - 63;
+                case 29: buf&=0x7F; if(buf<10) buf=10; t->ikoff[0]=buf; break;       // ограничено 10 - 127;
+                case 30: buf&=0x3F; if(buf<1) buf=1; t->pkoff[1]=buf; break;         // ограничено 1 - 63;
+                case 31: buf&=0x7F; if(buf<10) buf=10; t->ikoff[1]=buf; break;       // ограничено 10 - 127;
                }; 
              } break;
            case KEY_6: setup=0;EEPSAVE = 0;displmode=0;psword=0;buf=0;beeper_ON(DURATION*10); break;
@@ -186,14 +186,14 @@ void checkkey(struct eeprom *t, int16_t pvT0){
               switch (servis)
                {
                  case 7:  t->identif = buf&0x3F; break;      // C7 -> identif
-                 case 8:  t->ForceHeat=buf&0x3F; break;      // C8 -> FORCEHEAT Форсированный нагрев
-                 case 9:  t->TurnTime= buf&0x3FF; break;     // C9 -> TURNTIME
-                 case 10: t->TimeOut=(buf&0x3F)*60; break;   // C10-> TIME OUT
-                 case 11: t->HihEnable= buf&0x1; break;      // C11-> разрешено использовать HIH-4000
-                 case 12: t->KoffCurr= buf&0xFF; break;      // C12-> KoffCurr маштабный коэф. по току симистора
-                 case 13: t->coolOn =  buf&0x7F; break;      // C13-> порог включения вентилятора обдува сисмистора
-                 case 14: t->coolOff = buf&0x7F; break;      // C14-> порог отключения вентилятора обдува сисмистора
-                 case 15: t->Zonality= buf&0x3F; break;      // C15-> порог зональности в камере
+//                 case 8:  t->ForceHeat=buf&0x3F; break;      // C8 -> FORCEHEAT Форсированный нагрев
+                 case 9:  t->turnTime= buf&0x3FF; break;     // C9 -> TURNTIME время ожидания прохода лотков в сек.
+                 case 10: t->timeOut=(buf&0x3F)*6; break;    // C10-> TIME OUT время ожидания начала режима охлаждения в мин. 30 мин. *6 =180 => 1800 сек.
+//                 case 11:  break; // C11-> разрешено использовать HIH-5030/AM2301
+                 case 12: t->koffCurr= buf&0xFF; break;      // C12-> koffCurr маштабный коэф. по току симистора
+//                 case 13: t->coolOn =  buf&0x7F; break;      // C13-> порог включения вентилятора обдува сисмистора
+//                 case 14: t->coolOff = buf&0x7F; break;      // C14-> порог отключения вентилятора обдува сисмистора
+                 case 15: t->zonality= buf&0x3F; break;      // C15-> порог зональности в камере
                }
             } break;
            case KEY_3:
@@ -202,14 +202,14 @@ void checkkey(struct eeprom *t, int16_t pvT0){
               switch (servis)
                 {
                  case 7: buf=t->identif; break;           // C7 -> identif
-                 case 8: buf=t->ForceHeat; break;         // C8 -> FORCEHEAT
-                 case 9: buf=t->TurnTime; break;          // C9 -> TURNTIME
-                 case 10: buf=t->TimeOut/60; break;       // C10-> TIME OUT
-                 case 11: buf=t->HihEnable; break;        // C11-> разрешено использовать HIH-4000
-                 case 12: buf=t->KoffCurr; break;         // C12-> KoffCurr маштабный коэф. по току симистора
-                 case 13: buf=t->coolOn; break;           // C13-> порог включения вентилятора обдува сисмистора
-                 case 14: buf=t->coolOff; break;          // C14-> порог отключения вентилятора обдува сисмистора
-                 case 15: buf=t->Zonality; break;         // C15-> порог зональности в камере
+//                 case 8: buf=t->ForceHeat; break;         // C8 -> FORCEHEAT
+                 case 9: buf=t->turnTime; break;          // C9 -> TURNTIME время ожидания прохода лотков в сек.
+                 case 10: buf=t->timeOut/6; break;        // C10-> TIME OUT время ожидания начала режима охлаждения в мин. 180/6 =30 мин.
+//                 case 11:  break; // C11-> разрешено использовать HIH-5030/AM2301
+                 case 12: buf=t->koffCurr; break;         // C12-> koffCurr маштабный коэф. по току симистора
+//                 case 13: buf=t->coolOn; break;           // C13-> порог включения вентилятора обдува сисмистора
+//                 case 14: buf=t->coolOff; break;          // C14-> порог отключения вентилятора обдува сисмистора
+                 case 15: buf=t->zonality; break;         // C15-> порог зональности в камере
                  default: buf=0;
                 }
             } break;
@@ -219,17 +219,17 @@ void checkkey(struct eeprom *t, int16_t pvT0){
               switch (servis)
                {
                  case 7:  t->identif = buf&0x3F; break;      // C7 -> identif
-                 case 8:  t->ForceHeat=buf&0x3F; break;      // C8 -> FORCEHEAT Форсированный нагрев
-                 case 9:  t->TurnTime= buf&0x3FF; break;     // C9 -> TURNTIME
-                 case 10: t->TimeOut=(buf&0x7F)*60; break;   // C10-> TIME OUT
-                 case 11: t->HihEnable= buf&0x1; break;      // C11-> разрешено использовать HIH-4000
-                 case 12: t->KoffCurr= buf&0xFF; break;      // C12-> KoffCurr маштабный коэф. по току симистора
-                 case 13: t->coolOn =  buf&0x7F; break;      // C13-> порог включения вентилятора обдува сисмистора
-                 case 14: t->coolOff = buf&0x7F; break;      // C14-> порог отключения вентилятора обдува сисмистора
-                 case 15: t->Zonality= buf&0x3F; break;      // C15-> порог зональности в камере
+//                 case 8:  t->ForceHeat=buf&0x3F; break;      // C8 -> FORCEHEAT Форсированный нагрев
+                 case 9:  t->turnTime= buf&0x3FF; break;     // C9 -> TURNTIME время ожидания прохода лотков в сек.
+                 case 10: t->timeOut=(buf&0x3F)*6; break;    // C10-> TIME OUT время ожидания начала режима охлаждения в мин. 30 мин. *6 =180 => 1800 сек.
+//                 case 11:  break; // C11-> разрешено использовать HIH-5030/AM2301
+                 case 12: t->koffCurr= buf&0xFF; break;      // C12-> koffCurr маштабный коэф. по току симистора
+//                 case 13: t->coolOn =  buf&0x7F; break;      // C13-> порог включения вентилятора обдува сисмистора
+//                 case 14: t->coolOff = buf&0x7F; break;      // C14-> порог отключения вентилятора обдува сисмистора
+                 case 15: t->zonality= buf&0x3F; break;      // C15-> порог зональности в камере
                }
             } break;
-           case KEY_6: servis=0; EEPSAVE = 0; displmode=0; psword=0; buf=0; topUser=TOPUSER; botUser=BOTUSER; t->condition &=0xE7; beeper_ON(DURATION*10); break;
+           case KEY_6: servis=0; EEPSAVE = 0; displmode=0; psword=0; buf=0; topUser=TOPUSER; botUser=BOTUSER; t->state &=0xE7; beeper_ON(DURATION*10); break;
           }
        }
     else if(psword==10)       // режим ПАРОЛЬ ВВЕДЕН -------------------------
@@ -237,13 +237,13 @@ void checkkey(struct eeprom *t, int16_t pvT0){
         switch (keykod)
           {
            case KEY_1: setup=1; servis=0; displmode=0; buf=t->spT[0]; waitset=20; waitkey=WAITCOUNT; beeper_ON(DURATION*2); break;
-           case KEY_3: if((t->condition&7)==0) {servis=1; setup=0; displmode=0; waitset=20; waitkey=WAITCOUNT; beeper_ON(DURATION*2);} break;
-           case KEY_6: psword=0; displmode=0; buf=0; t->condition &=0xE7; servis=0; setup=0; waitkey=WAITCOUNT; beeper_ON(DURATION*10); break;// РЕЖИМЫ ОТКЛЮЧЕНЫ
-           case KEY_6_5: if((t->condition&7)==0){t->condition|=0x01; t->condition&=0x7F; beeper_ON(DURATION*2);}
-                         else {t->condition&=0x60; beeper_ON(DURATION*5);} countsec=-5; ok0=0; ok1=0; psword=0; EEPSAVE=1; waitset=1;
+           case KEY_3: if((t->state&7)==0) {servis=1; setup=0; displmode=0; waitset=20; waitkey=WAITCOUNT; beeper_ON(DURATION*2);} break;
+           case KEY_6: psword=0; displmode=0; buf=0; t->state &=0xE7; servis=0; setup=0; waitkey=WAITCOUNT; beeper_ON(DURATION*10); break;// РЕЖИМЫ ОТКЛЮЧЕНЫ
+           case KEY_6_5: if((t->state&7)==0){t->state|=0x01; t->state&=0x7F; beeper_ON(DURATION*2);}
+                         else {t->state&=0x60; beeper_ON(DURATION*5);} countsec=-5; ok0=0; ok1=0; psword=0; EEPSAVE=1; waitset=1;
                 break;
-           case KEY_7_5: if((t->condition&0x1F)==0) t->condition|=0x80; countsec=-5; psword=0; EEPSAVE=1; waitset=1; break; //ВКЛЮЧИТЬ Поворот лотков при ОТКЛЮЧЕННОЙ камере !!!
-           case KEY_8_5: if(t->condition&0x80) t->condition&=0x7F; countsec=-5; psword=0; EEPSAVE=1; waitset=1; break;      //ОТКЛЮЧИТЬ Поворот лотков при ОТКЛЮЧЕННОЙ камере !!!
+           case KEY_7_5: if((t->state&0x1F)==0) t->state|=0x80; countsec=-5; psword=0; EEPSAVE=1; waitset=1; break; //ВКЛЮЧИТЬ Поворот лотков при ОТКЛЮЧЕННОЙ камере !!!
+           case KEY_8_5: if(t->state&0x80) t->state&=0x7F; countsec=-5; psword=0; EEPSAVE=1; waitset=1; break;      //ОТКЛЮЧИТЬ Поворот лотков при ОТКЛЮЧЕННОЙ камере !!!
            case KEY_4_5_6_7: displmode=-10; break;
           }
        }
@@ -254,12 +254,12 @@ void checkkey(struct eeprom *t, int16_t pvT0){
            case KEY_3:   buf++; psword++; waitset=5; break;
            case KEY_4:   buf++; buf <<= 1; psword++; waitset=5; break;
            case KEY_5:   ++displmode; displmode&=3; waitset=20; break;
-           case KEY_6:   psword=0; displmode=0; buf=0; t->condition &=0xE7; servis=0; waitkey=WAITCOUNT; beeper_ON(DURATION*10); break;// РЕЖИМЫ ОТКЛЮЧЕНЫ
+           case KEY_6:   psword=0; displmode=0; buf=0; t->state &=0xE7; servis=0; waitkey=WAITCOUNT; beeper_ON(DURATION*10); break;// РЕЖИМЫ ОТКЛЮЧЕНЫ
            case KEY_7:   disableBeep=10; alarmErr = abs(t->spT[0]-pvT0); break;      // тревога отключена на 10 мин.
            case KEY_8:   disableBeep=10; alarmErr = abs(t->spT[0]-pvT0); break;      // тревога отключена на 10 мин.
-           case KEY_7_8: t->condition |=0x08; beeper_ON(DURATION*2); break;          // ГОРИЗОНТ ВКЛЮЧЕН !!
-           case KEY_8_6: if((t->condition&7)==1){t->condition |=0x02; beeper_ON(DURATION*2);} break; // ВКЛЮЧИТЬ Режим "подгототка к ОХЛАЖДЕНИЮ"
-//           case KEY_7_6: pvTimer=1; rotate_trays(); break;                         // принудительный поворот
+           case KEY_7_8: t->state |=0x08; beeper_ON(DURATION*2); break;          // ГОРИЗОНТ ВКЛЮЧЕН !!
+           case KEY_8_6: if((t->state&7)==1){t->state |=0x02; beeper_ON(DURATION*2);} break; // ВКЛЮЧИТЬ Режим "подгототка к ОХЛАЖДЕНИЮ"
+//           case KEY_7_6: nextTurn=1; rotate_trays(); break;                         // принудительный поворот
           };
        };
 //-----------------------------------------------------------------------------------------------------------------------------------------------------

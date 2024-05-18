@@ -33,12 +33,12 @@ int16_t UpdatePID(int16_t err, uint8_t cn, struct eeprom *t){
  int16_t maxVal;
  float pPart, Ud;
   if(cn) maxVal=t->maxRun; else maxVal=MAXPULS; // maxRun = 10000 = 10 секунд; 1100 -> 1.1 сек.
-  pPart = (float) err * t->K[cn];               // расчет пропорциональной части
+  pPart = (float) err * t->pkoff[cn];               // расчет пропорциональной части
 //---- функция ограничения pPart ---------------
   if (pPart < 0) pPart = 0;
   else if (pPart > maxVal) pPart = maxVal;      // функция ограничения
 //----------------------------------------------
-  iPart[cn] += (float) t->K[cn] / t->Ti[cn] * err;  // приращение интегральной части
+  iPart[cn] += (float) t->pkoff[cn] / t->ikoff[cn] * 10 * err;  // приращение интегральной части
   Ud = pPart + iPart[cn];                       // выход регулятора до ограничения
 //---- функция ограничения Ud ------------------
   if (Ud < 0) Ud = 0;
@@ -62,7 +62,7 @@ uint16_t humidifier(int16_t err, struct eeprom *t){
   static int8_t direction;
   // релейный режим работы  0-НЕТ; 1->по кан.[0] 2->по кан.[1] 3->по кан.[0]&[1] 4->по кан.[1] импульсный режим
   if(t->relayMode&2){
-    if(err > t->Hysteresis) {result = MAXPULS; direction = 1;}  // ниже (заданной+Hysteresis) включить увлажнитель
+    if(err > t->hysteresis) {result = MAXPULS; direction = 1;}  // ниже (заданной+hysteresis) включить увлажнитель
     else if(err < 0) {result = 0; direction = -1;}              // выше заданной отключить увлажнитель
     else if(direction>0) result = MAXPULS;                      // продолжаем увлажнять
     else result = 0;                                            // продолжаем осушать
@@ -78,9 +78,9 @@ uint16_t humidifier(int16_t err, struct eeprom *t){
   return result;
 }
 
-uint8_t RelayPos(int16_t err, uint8_t cn, uint8_t Hysteresis){
+uint8_t RelayPos(int16_t err, uint8_t cn, uint8_t hysteresis){
  uint8_t x=UNCHANGED;
-  if(err > Hysteresis) x = ON;          // ниже (заданной-offSet) включить
+  if(err > hysteresis) x = ON;          // ниже (заданной-offSet) включить
   if(err < 0) x = OFF;                  // выше заданной отключить
   return x;
 }
@@ -104,8 +104,8 @@ void extra_2(struct eeprom *t, struct rampv *ram){
     // доп. канал -> Форсированный нагрев
     case 2: 
             err = t->spT[0]-ram->pvT[0];
-            if(err > (t->ForceHeat+t->Hysteresis)) byte = ON;
-            else if(err < t->ForceHeat) byte = OFF;
+//            if(err > (t->ForceHeat+t->hysteresis)) byte = ON;
+//            else if(err < t->ForceHeat) byte = OFF;
   		break;
   	// доп. канал -> Форсированное охлаждение
     case 3: 
@@ -120,7 +120,7 @@ void extra_2(struct eeprom *t, struct rampv *ram){
   	// доп. канал -> Дублирование канала увлажнения
     case 5: 
             err = t->spT[1]-ram->pvT[1];
-            byte = RelayPos(err, 1, t->Hysteresis);
+            byte = RelayPos(err, 1, t->hysteresis);
             if(!(ok0&1)) byte = OFF;  // отключение УВЛАЖНЕНИЯ при РАЗОГРЕВЕ и ПЕРЕОХЛАЖДЕНИИ
   		break;
     // доп. канал -> Сирена

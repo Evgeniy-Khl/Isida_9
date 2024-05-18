@@ -10,7 +10,7 @@ extern int16_t buf, currAdc, humAdc;
 //------- Светодиодная индикация --------------------------------------------------------- 
 // 0-нагрев, 1-увлаж.,2-заслонка,3-дополнит.,4-лотки,5-,6-программа,7-SD карта
 // 0-обрыв нагрев, 1-преохр.увлаж.,2-преохр.заслонка,3-преохр.дополнит.,4-ДВЕРЬ,5-ОСТАНОВ вент.,6-НЕТ поворота,7-ГОРИЗОНТ
-void ledOut(uint8_t condition, uint8_t warning, uint8_t fuses){
+void ledOut(uint8_t state, uint8_t warning, uint8_t fuses){
  uint8_t led, i;
   for(i=0;i<8;i++) LedOff(i,3);     // All LED Off
   led = portOut.value & 0x0F;       // portOut
@@ -21,13 +21,13 @@ void ledOut(uint8_t condition, uint8_t warning, uint8_t fuses){
   while (i<4){if(led & 1) LedOn(i,2);	led >>= 1; i++;}    // 0b00001111
   if(TURN) LedOn(4,1);  // лотки вверху
   if(countsec&1){
-    if(condition&0x02) LedOn(5,1);  // Режим "подгототка к ОХЛАЖДЕНИЮ"
+    if(state&0x02) LedOn(5,1);  // Режим "подгототка к ОХЛАЖДЕНИЮ"
 //    if(prog) LedOn(6,1);  // работает по программе
     if(cardOk) LedOn(7,1);  // идет запись на SD карту
     if(!HAL_GPIO_ReadPin(Door_GPIO_Port, Door_Pin)) LedOn(4,2);  // концевик дверей
     if(warning&0x20) LedOn(5,2);    // ОСТАНОВ вентилятора    
     if(warning&0x40) LedOn(6,2);    // НЕТ поворота
-    if(condition&0x10) LedOn(7,2);  // ГОРИЗОНТ  установлен
+    if(state&0x10) LedOn(7,2);  // ГОРИЗОНТ  установлен
   }
 }
 
@@ -184,13 +184,13 @@ void display(struct eeprom *t, struct rampv *ram){
        else if(ram->warning&0x0F) xx=22+(ram->warning&0x0F);        // мигает "xx" двузначный код предупреждения
        else if(ram->fuses&0x70) {xx=15+((ram->fuses&0x70)>>4);}     // мигает "xx" двузначный код предупреждения (дверь открыта; останов вент.; нет поворота)
        else if(ram->fuses&0x0F) {xx=(ram->fuses&0x0F); yy=FUSES;}   // мигает "Пx" код предохранителя
-       else if(t->condition&0x01) {xx=1; yy=CONTROL; blink=0;}          // Режим "P1" "ИНКУБАЦИЯ"
-       else if(t->condition&0x02) {xx=2; yy=CONTROL; blink=0;}          // Режим "P2" "подгототка к ОХЛАЖДЕНИЮ"
-       else if(t->condition&0x04) {xx=3; yy=CONTROL; blink=0;}          // Режим "P3" "подгототка к ВКЛЮЧЕНИЮ"
-       else if((t->condition&0x18)==0x08) {xx=4; yy=CONTROL; blink=0;}  // "P4" ГОРИЗОНТ УСТАНОВЛЕН
-       else if(t->condition&0x80) {xx=5; yy=CONTROL; blink=0;}          // "P5" Поворот лотков при ОТКЛЮЧЕННОЙ камере !!!
+       else if(t->state&0x01) {xx=1; yy=CONTROL; blink=0;}          // Режим "P1" "ИНКУБАЦИЯ"
+       else if(t->state&0x02) {xx=2; yy=CONTROL; blink=0;}          // Режим "P2" "подгототка к ОХЛАЖДЕНИЮ"
+       else if(t->state&0x04) {xx=3; yy=CONTROL; blink=0;}          // Режим "P3" "подгототка к ВКЛЮЧЕНИЮ"
+       else if((t->state&0x18)==0x08) {xx=4; yy=CONTROL; blink=0;}  // "P4" ГОРИЗОНТ УСТАНОВЛЕН
+       else if(t->state&0x80) {xx=5; yy=CONTROL; blink=0;}          // "P5" Поворот лотков при ОТКЛЮЧЕННОЙ камере !!!
        else if(VENTIL) {xx=6; yy=CONTROL; blink=0;}                     // "P6" Углекислый газ или Проветривание
-       else if(t->condition==0) {xx=ram->cellID&0x1F; yy=0; blink=2;}   // ОТКЛЮЧЕН! показываем номер Блока "xx"
+       else if(t->state==0) {xx=ram->node&0x1F; yy=0; blink=2;}   // ОТКЛЮЧЕН! показываем номер Блока "xx"
        else {xx=0; yy=SETUP;}                                           // неизвестный режим
        break;
     //---------------уставка t0;-------------------------уставка RH;---------------------уставка t1;-----------------"d1"---------
@@ -198,7 +198,7 @@ void display(struct eeprom *t, struct rampv *ram){
     //-------------------t1;--------------------t2;------------------"d2"---------
     case 2: displ_1(ram->pvT[1],COMMA); displ_2(ram->pvT[2],COMMA); xx=displmode; yy=DISPL; blink=0; break;
     //--------------- CO2 ------------------------ flap ----------------------"d3"------------------
-//    case 3: displ_1(ram->pvCO2[0]/10,NOCOMMA); displ_2(ram->pvFlap,NOCOMMA); xx=displmode; yy=DISPL; blink=0; break;
+//    case 3: displ_1(ram->pvCO2[0]/10,NOCOMMA); displ_2(ram->flap,NOCOMMA); xx=displmode; yy=DISPL; blink=0; break;
     case 3: displ_1(currAdc,NOCOMMA); displ_2(humAdc,NOCOMMA); xx=displmode; yy=DISPL; blink=0; break;
   }
   if(ok0>1) if(countsec&1) clr_1();
@@ -245,7 +245,7 @@ void display_servis(struct rampv *ram){
 	switch (servis){
 		case 1: displ_1(currAdc,COMMA); clr_2(); break;                               // C1 -> НАГРЕВ; Сила тока
 		case 2: displ_1(ram->pvRH,NOCOMMA); displ_2(humAdc,NOCOMMA); break;           // C2 -> ВЛАЖНОСТЬ; значение АЦП
-		case 3: displ_1(ram->pvCO2[0],NOCOMMA); displ_2(ram->pvFlap,NOCOMMA); break;  // C3 -> ЗАСЛОНКА; СО2, СЕРВОПРИВОД град.
+		case 3: displ_1(ram->pvCO2,NOCOMMA); displ_2(ram->flap,NOCOMMA); break;     // C3 -> ЗАСЛОНКА; СО2, СЕРВОПРИВОД град.
 		case 8: displ_1(buf,COMMA); clr_2(); break;                                   // C8 -> Уставка форсированного нагрева
 		default: displ_1(buf,NOCOMMA); clr_2();
 	}

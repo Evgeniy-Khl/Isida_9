@@ -135,7 +135,7 @@ int8_t chkhorizon(uint8_t state){ // проверка прохода через горизонт
 
 int8_t readCO2(struct rampv *ram){ // чтение модуля СО2
  int8_t byte;
- static uint8_t countTry;
+// static uint8_t countTry;
   outbuffer[0]=DATAREAD;       // Function Command
   outbuffer[1]=0x00;           // Data 1
   outbuffer[2]=0x00;           // Data 2
@@ -145,10 +145,10 @@ int8_t readCO2(struct rampv *ram){ // чтение модуля СО2
      byte = inbuffer[0];       // колич. обслуж. камер(0x30) + номер камеры 
      byte = inbuffer[0]&0x03;  // номер камеры
      //inbuffer[1]; не используется
-     ram->pvCO2[byte] = inbuffer[2]+inbuffer[3]*256;// значение CO2
-     countTry = 0;
+//     ram->pvCO2[byte] = inbuffer[2]+inbuffer[3]*256;// значение CO2
+//     countTry = 0;
    }
-  else if(++countTry>5) {byte = -1; for (byte=0;byte<3;byte++) ram->pvCO2[byte]=0;}// Отказ модуля CO2
+//  else if(++countTry>5) {byte = -1; for (byte=0;byte<3;byte++) ram->pvCO2[byte]=0;}// Отказ модуля CO2
   return byte;
 }
 

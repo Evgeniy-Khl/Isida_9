@@ -63,7 +63,7 @@ uint8_t SD_write(const char* flname, struct eeprom *t, struct rampv *ram){
       item = f_lseek(&MyFile, f_size);
       if (item==FR_OK){
         UnixTime = timestamp(); //  персчет в UnixTime
-        sprintf(buffile,"%u; %2x;%5.1f;%4.1f;%5.1f;%4.1f;",UnixTime,t->condition,(float)ram->pvT[0]/10,(float)t->spT[0]/10,(float)ram->pvT[1]/10,(float)t->spT[1]/10);
+        sprintf(buffile,"%u; %2x;%5.1f;%4.1f;%5.1f;%4.1f;",UnixTime,t->state,(float)ram->pvT[0]/10,(float)t->spT[0]/10,(float)ram->pvT[1]/10,(float)t->spT[1]/10);
         if(ram->pvRH<=1000) sprintf(txt,"%5.1f;%4.1f;",(float)ram->pvRH/10,(float)t->spRH[1]/10);
         else sprintf(txt," --.-;--.-;");
         strcat(buffile,txt);

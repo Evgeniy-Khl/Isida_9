@@ -17,7 +17,7 @@
 //void display(struct eeprom *t, struct rampv *ram);
 //void display_setup(struct eeprom *t);
 //void display_servis(struct rampv *ram);
-void ledOut(uint8_t condition, uint8_t warning, uint8_t fuses);
+void ledOut(uint8_t state, uint8_t warning, uint8_t fuses);
 void displ_1(int16_t val, uint8_t comma);
 void displ_2(int16_t val, uint8_t comma);
 void displ_3(int16_t val, int8_t mode, int8_t blink);

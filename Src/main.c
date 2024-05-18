@@ -107,22 +107,24 @@ uint16_t currAdc, humAdc, statPw[2];
 uint32_t summCurr=0, summPower=0, UnixTime;
 /* ----------------------------- BEGIN point value -------------------------------------- */
 union pointvalue{
-  uint8_t pvdata[30];
+  uint8_t pvdata[20];
   struct rampv {
-   uint16_t cellID;               // 2 байт ind=0         сетевой номер и тип прибора
-    int16_t pvT[MAX_DEVICES];     // 8 байт ind=2-ind=9   значения [MAX_DEVICES] датчиков температуры
-    int16_t pvRH;                 // 2 байт ind=10;ind=11 значение датчика относительной влажности
-    int16_t pvCO2[3];             // 6 байт ind=12-ind=17 значения датчика CO2 ---------- ИТОГО 18 bytes ------------
-    uint8_t pvTimer;              // 1 байт ind=18        значение таймера
-    uint8_t pvTmrCount;           // 1 байт ind=19        не используется !!!!!!!!!!!!!!!!!!!!!!!!!
-    uint8_t pvFlap;               // 1 байт ind=20        положение заслонки 
-    uint8_t power;                // 1 байт ind=21        мощность подаваемая на тены
-    uint8_t fuses;                // 1 байт ind=22        короткие замыкания 
-    uint8_t errors, warning;      // 2 байт ind=23;ind=24 ошибки и предупреждения
-    uint8_t cost0, cost1;         // 2 байт ind=25;ind=26 затраты ресурсов
-    uint8_t date, hours;          // 2 байт ind=27;ind=28 счетчики суток и часов
-    uint8_t other0;               // 1 байт ind=29        не используется !!!!!!!!!!!!!!!!!!!!!!!!!
-  } pv;// ------------------ ИТОГО 30 bytes -------------------------------
+    uint8_t model;       // 1 байт ind=0  модель прибора
+    uint8_t node;        // 1 байт ind=1  сетевой номер прибора
+    int16_t pvT[MAX_DEVICES]; // 6 байт ind=2-ind=9   значения [MAX_DEVICES=3] датчиков температуры
+    uint8_t pvRH;        // 1 байт ind=8  значение датчика относительной влажности
+    uint8_t pvCO2;       // 1 байт ind=9  значения датчика CO2 (250*20=5000 / 20*20=400)
+    uint8_t nextTurn;    // 1 байт ind=10 значение таймера до начала поворота лотков
+    uint8_t fan;         // 1 байт ind=11 скорость вращения тихоходного вентилятора
+    uint8_t flap;        // 1 байт ind=12 положение заслонки 
+    uint8_t power;       // 1 байт ind=13 мощность подаваемая на тены
+    uint8_t fuses;       // 1 байт ind=14 короткие замыкания 
+    uint8_t errors;      // 1 байт ind=15 ошибки
+    uint8_t warning;     // 1 байт ind=16 предупреждения
+    uint8_t nothing0;    // 1 байт ind=17
+    uint8_t nothing1;    // 1 байт ind=18
+    uint8_t nothing2;    // 1 байт ind=19
+  } pv;// ------------------ ИТОГО 20 bytes -------------------------------
 } upv;
 struct rampv *p_rampv = &upv.pv;
 
@@ -131,34 +133,34 @@ union serialdata{
   uint8_t data[EEP_DATA];
   struct eeprom {
     int16_t spT[2];     // 4 байт ind=0-ind=3   Уставка температуры sp[0].spT->Сухой датчик; sp[1].spT->Влажный датчик
-    int16_t spRH[2];    // 4 байт ind=4-ind=7   sp[0].spRH->ПОДСТРОЙКА HIH-5030; sp[1].spRH->Уставка влажности Датчик HIH-5030
-    int16_t K[2];       // 4 байт ind=8-ind=11  пропорциональный коэфф.
-    int16_t Ti[2];      // 4 байт ind=12-ind=15 интегральный коэфф.
-    int16_t minRun;     // 2 байт ind=16;ind=17 импульсное управление насосом увлажнителя
-    int16_t maxRun;     // 2 байт ind=18;ind=19 импульсное управление насосом увлажнителя
-    int16_t period;     // 2 байт ind=20;ind=21 импульсное управление насосом увлажнителя
-    int16_t TimeOut;    // 2 байт ind=22;ind=23 время ожидания начала режима охлаждения
-    int16_t EnergyMeter;// 2 байт ind=24;ind=25 счетчик элктрической энергии  ----------- ИТОГО 26 bytes ------------
-    int8_t timer[2];    // 2 байт ind=26;ind=27 [0]-отключ.состояниe [1]-включ.состояниe
-    int8_t alarm[2];    // 2 байт ind=28;ind=29 дельта 5 = 0.5 гр.C
-    int8_t extOn[2];    // 2 байт ind=30;ind=31 смещение для ВКЛ. вспомогательного канала
-    int8_t extOff[2];   // 2 байт ind=32;ind=33 смещение для ОТКЛ. вспомогательного канала
-    uint8_t air[2];     // 2 байт ind=34;ind=35 таймер проветривания air[0]-пауза; air[1]-работа; если air[1]=0-ОТКЛЮЧЕНО
-    uint8_t spCO2;      // 1 байт ind=36;       опорное значение для управления концетрацией СО2
-    uint8_t identif;    // 1 байт ind=37;       сетевой номер прибора
-    uint8_t condition;  // 1 байт ind=38;       состояние камеры (ОТКЛ. ВКЛ. ОХЛАЖДЕНИЕ, и т.д.)
-    uint8_t extendMode; // 1 байт ind=39;       расширенный режим работы  0-СИРЕНА; 1-ВЕНТ. 2-Форс НАГР. 3-Форс ОХЛЖД. 4-Форс ОСУШ. 5-Дубляж увлажнения
-    uint8_t relayMode;  // 1 байт ind=40;       релейный режим работы  0-НЕТ; 1->по кан.[0] 2->по кан.[1] 3->по кан.[0]&[1] 4->по кан.[1] импульсный режим
-    uint8_t programm;   // 1 байт ind=41;       работа по программе
-    uint8_t Hysteresis; // 1 байт ind=42;       Гистерезис канала увлажнения
-    uint8_t ForceHeat;  // 1 байт ind=43;       Форсированный нагрев 5 = 0.5 грд.С.
-    uint8_t TurnTime;   // 1 байт ind=44;       время ожидания прохода лотков в секундах
-    uint8_t HihEnable;  // 1 байт ind=45;       разрешение использования датчика влажности
-    uint8_t KoffCurr;   // 1 байт ind=46;       маштабный коэф. по току симистора  (160 для AC1010 или 80 для другого)
-    uint8_t coolOn;     // 1 байт ind=47;       не используется !!!!!!!!!!!!!!!!!!!!!!!!!
-    uint8_t coolOff;    // 1 байт ind=48;       не используется !!!!!!!!!!!!!!!!!!!!!!!!!
-    uint8_t Zonality;   // 1 байт ind=49;       порог зональности в камере ----------- 24 bytes ------------
-  } sp;                 // ------------------ ИТОГО 50 bytes -------------------------------
+    //spRH[0]->ПОДСТРОЙКА HIH-5030/AM2301 
+    //spRH[1]->Уставка влажности Датчик HIH-5030/AM2301 (маска 0111 1111 6,7 бит для разрешения датчика HIH-5030,AM2301);
+    int8_t  spRH[2];    // 2 байт ind=4;ind=5
+    uint8_t state;      // 1 байт ind=6;        состояние камеры (ОТКЛ. ВКЛ. ОХЛАЖДЕНИЕ, и т.д.)
+    uint8_t extendMode; // 1 байт ind=7;        расширенный режим работы  0-СИРЕНА; 1-ВЕНТ. 2-Форс НАГР. 3-Форс ОХЛЖД. 4-Форс ОСУШ. 5-Дубляж увлажнения
+    uint8_t relayMode;  // 1 байт ind=8;        релейный режим работы  0-НЕТ; 1->по кан.[0] 2->по кан.[1] 3->по кан.[0]&[1] 4->по кан.[1] импульсный режим
+    uint8_t programm;   // 1 байт ind=9;        работа по программе
+    uint8_t minRun;     // 1 байт ind=10        импульсное управление насосом увлажнителя
+    uint8_t maxRun;     // 1 байт ind=11        импульсное управление насосом увлажнителя
+    uint8_t period;     // 1 байт ind=12        импульсное управление насосом увлажнителя
+    uint8_t timer[2];   // 2 байт ind=13;ind=14 [0]-отключ.состояниe [1]-включ.состояниe
+    uint8_t alarm[2];   // 2 байт ind=15;ind=16 дельта 5 = 0.5 гр.C
+    uint8_t extOn[2];   // 2 байт ind=17;ind=18 смещение для ВКЛ. вспомогательного канала
+    uint8_t extOff[2];  // 2 байт ind=19;ind=20 смещение для ОТКЛ. вспомогательного канала
+    uint8_t air[2];     // 2 байт ind=21;ind=22 таймер проветривания air[0]-пауза; air[1]-работа; если air[1]=0-ОТКЛЮЧЕНО
+    uint8_t spCO2;      // 1 байт ind=23;       опорное значение для управления концетрацией СО2
+    uint8_t koffCurr;   // 1 байт ind=24;       маштабный коэф. по току симистора  (150 для AC1010)
+    uint8_t hysteresis; // 1 байт ind=25;       гистерезис канала увлажнения
+    uint8_t zonality;   // 1 байт ind=26;       порог зональности в камере
+    uint8_t turnTime;   // 1 байт ind=27;       время ожидания прохода лотков в секундах
+    uint8_t timeOut;    // 1 байт ind=28        время ожидания начала режима охлаждения
+    uint8_t pkoff[2];   // 2 байт ind=29;ind=30 пропорциональный коэфф.
+    uint8_t ikoff[2];   // 2 байт ind=31;ind=32 интегральный коэфф.
+    uint8_t identif;    // 1 байт ind=33;       сетевой номер прибора
+    uint8_t ip[4];      // 4 байт ind=34;ind=35;ind=36;ind=37; IP MQTT broker [192.168.100.100]
+    uint8_t nothing0;   // 1 байт ind=38;       не используется !
+    uint8_t nothing1;   // 1 байт ind=39;       не используется !
+  } sp;                 // ------------------ ИТОГО 40 bytes -------------------------------
 } eep;
 struct eeprom *p_eeprom = &eep.sp;
 /* ------------------------------ END EEPROM -------------------------------------------- */
@@ -173,7 +175,7 @@ void display_setup(struct eeprom *t);
 void display_servis(struct rampv *ram);
 void displ_3(int16_t val, int8_t mode, int8_t blink);
 void rotate_trays(uint8_t timer0, uint8_t timer1, struct rampv *ram);
-uint8_t sethorizon(uint8_t timer0, uint8_t TurnTime, struct rampv *ram);
+uint8_t sethorizon(uint8_t timer0, uint8_t turnTime, struct rampv *ram);
 int8_t chkflap(uint8_t cmd, uint8_t *pvF);
 uint8_t readCO2(struct rampv *ram);
 //------
@@ -321,7 +323,7 @@ int main(void)
 
   /* ------------------------------------------- BEGIN таймер TIM4 1 Гц. ----------------------------------------------------------------------- */
       if(CHECK){   // ------- новая секунда --------------------------------------------------------------
-        CHECK=0; DISPLAY=1; ALARM=0; upv.pv.errors=0; upv.pv.warning=0; upv.pv.pvTmrCount = countsec;
+        CHECK=0; DISPLAY=1; ALARM=0; upv.pv.errors=0; upv.pv.warning=0;
         HAL_ADC_Start_DMA(&hadc1, (uint32_t*)&adc, 2);
         while(flag==0);
         flag = 0;
@@ -342,19 +344,19 @@ int main(void)
            if(humAdc > 500){                                                // humAdc = 500 mV для RH=0%
               upv.pv.pvRH = mVToRH(humAdc, eep.sp.spRH[0], upv.pv.pvT[0]);  // расчет относительной влажности % (мВ.,коррекция,температура)
            }
-           else upv.pv.pvRH = 1999;
+           else upv.pv.pvRH = 200;
         }
   //---------------------- Состояние дверей; "подгототка к ОХЛАЖДЕНИЮ"; "подгототка к ВКЛЮЧЕНИЮ" --------------------------------------------------
         chkdoor(&eep.sp, &upv.pv);
-        if((eep.sp.condition&0x18)==0x08) eep.sp.condition|= sethorizon(eep.sp.timer[0], eep.sp.TurnTime, &upv.pv);  // Установка в горизонтальное положение
+        if((eep.sp.state&0x18)==0x08) eep.sp.state|= sethorizon(eep.sp.timer[0], eep.sp.turnTime, &upv.pv);  // Установка в горизонтальное положение
   //------------------------------------------ Опрос модулей расширения ---------------------------------------------------------------------------
         if(modules&1) {
-          tmpbyte = chkcooler(eep.sp.condition);
+          tmpbyte = chkcooler(eep.sp.state);
           if(tmpbyte<0) upv.pv.errors |= 0x40;        // Отказ модуля Холла
           else if(tmpbyte>0) upv.pv.warning |= 0x20;  // ОСТАНОВ тихоходного вентилятора
         }
         if(modules&2) {
-          tmpbyte = chkhorizon(eep.sp.condition);
+          tmpbyte = chkhorizon(eep.sp.state);
           if(tmpbyte<0) upv.pv.errors |= 0x40; // Отказ модуля ГОРИЗОНТ
           else if(tmpbyte>0) upv.pv.warning |= 0x40;  // НЕТ ПОВОРОТА лотков
         }
@@ -363,11 +365,11 @@ int main(void)
           if(tmpbyte<0) upv.pv.errors |= 0x20;        // Отказ модуля CO2
         }
         if(modules&8) {
-          tmpbyte = chkflap(0,&upv.pv.pvFlap);
+          tmpbyte = chkflap(0,&upv.pv.flap);
           if(tmpbyte<0) upv.pv.errors |= 0x20;        // Отказ модуля заслонок
         }
   //------------------------------------------ КАМЕРА ВКЛЮЧЕНА в работу ---------------------------------------------------------------------------
-        if (eep.sp.condition&1){
+        if (eep.sp.state&1){
           // --------------------------------------- НАГРЕВАТЕЛЬ -----------------------------------------------------------------
           if(HAL_GPIO_ReadPin(OVERHEAT_GPIO_Port, OVERHEAT_Pin)==GPIO_PIN_RESET) upv.pv.errors |= 0x10;  // ПЕРЕГРЕВ СИМИСТОРА !!!
           else if((upv.pv.warning&0x20)==0){    // НЕТ ОСТАНОВА тихоходного вентилятора !!!
@@ -420,15 +422,15 @@ int main(void)
           }
           if(upv.pv.fuses&0x02) tmpbyte = OFF;      // ПРЕДОХРАНИТЕЛЬ доп. канал №1
           switch (tmpbyte){
-            case ON:  FLAP = ON;  upv.pv.pvFlap = FLAPOPEN;  if(modules&8) chkflap(SETFLAP,  &upv.pv.pvFlap); break;// установка заслонки
-            case OFF: FLAP = OFF; upv.pv.pvFlap = FLAPCLOSE; if(modules&8) chkflap(DATAREAD, &upv.pv.pvFlap); break;// установка заслонки; сброс флага запрещения принудительной подачи воды
+            case ON:  FLAP = ON;  upv.pv.flap = FLAPOPEN;  if(modules&8) chkflap(SETFLAP,  &upv.pv.flap); break;// установка заслонки
+            case OFF: FLAP = OFF; upv.pv.flap = FLAPCLOSE; if(modules&8) chkflap(DATAREAD, &upv.pv.flap); break;// установка заслонки; сброс флага запрещения принудительной подачи воды
           }
           // --------------------------------------- ВСПОМОГАТЕЛЬНЫЙ -----------------------------------------------------------------
           extra_2(&eep.sp, &upv.pv);
   //---------------------------------------- ЗОНАЛЬНОСТЬ температуры камеры -----------------------------------------------------------------------
             if(ok0){
-                if(HIH5030||AM2301) {if(ds18b20_amount>1) {if(abs(upv.pv.pvT[0]-upv.pv.pvT[1])>eep.sp.Zonality) upv.pv.warning |=0x08;}} // Большой перепад температур.
-                else     {if(ds18b20_amount>2) {if(abs(upv.pv.pvT[0]-upv.pv.pvT[2])>eep.sp.Zonality) upv.pv.warning |=0x08;}};// Большой перепад температур.
+                if(HIH5030||AM2301) {if(ds18b20_amount>1) {if(abs(upv.pv.pvT[0]-upv.pv.pvT[1])>eep.sp.zonality) upv.pv.warning |=0x08;}} // Большой перепад температур.
+                else     {if(ds18b20_amount>2) {if(abs(upv.pv.pvT[0]-upv.pv.pvT[2])>eep.sp.zonality) upv.pv.warning |=0x08;}};// Большой перепад температур.
             }
             if(!(HIH5030||AM2301) && (upv.pv.pvT[1]-upv.pv.pvT[0])>20){
               if(upv.pv.pvT[1] < 850){
@@ -438,9 +440,9 @@ int main(void)
               else upv.pv.errors |= 0x02;   // ОШИБКА ДАТЧИКА влажности !!!
             }
   //--------------------------------------- ПОВОРОТ ЛОТКОВ Статистика камеры ----------------------------------------------------------------------
-            if(eep.sp.KoffCurr){
+            if(eep.sp.koffCurr){
             // конверсия mV в mA ->100mV/1A+1.65V. (5A->0.5+1.65=2.15; 10A->2.65; 20A->3.65) добавляем делитель 110k/68k на 2,65 и получаем 10А = 1В = 1000 мВ
-              currAdc *= eep.sp.KoffCurr; currAdc /= 100;
+              currAdc *= eep.sp.koffCurr; currAdc /= 100;
               summCurr += currAdc;                                        // суммирование тока симистора каждую секунду
               if(upv.pv.power==100 && countsec>=0 && currAdc<100) upv.pv.errors|=0x08;  // если ток < 1,0 А. -> НЕИСПРАВНА цепь НАГРЕВАТЕЛЯ 
             }
@@ -451,44 +453,44 @@ int main(void)
             if(countsec>59){
               ++countmin; countsec=0; if (disableBeep) disableBeep--;
               if(cardOk) SD_write(fileName, p_eeprom, p_rampv); else My_LinkDriver();  // запись на SD если КАМЕРА ВКЛЮЧЕНА в работу
-              if(!(eep.sp.condition&0x18)) rotate_trays(eep.sp.timer[0], eep.sp.timer[1], &upv.pv);  // выполняется только если Камера ВКЛ.
-              if(upv.pv.pvCO2[0]>0) CO2_check(eep.sp.spCO2, eep.sp.spCO2, upv.pv.pvCO2[0]); // Проверка концентрации СО2
+              if(!(eep.sp.state&0x18)) rotate_trays(eep.sp.timer[0], eep.sp.timer[1], &upv.pv);  // выполняется только если Камера ВКЛ.
+              if(upv.pv.pvCO2>0) CO2_check(eep.sp.spCO2, eep.sp.spCO2, upv.pv.pvCO2); // Проверка концентрации СО2
               else if(eep.sp.air[1]>0) aeration_check(eep.sp.air[0], eep.sp.air[1]);    // Проветривание выполняется только если air[1]>0
               statPw[0]/=60; statPw[1]/=60;     // расчет затрат ресурсов
-              upv.pv.cost0=statF2(0, statPw[0]); upv.pv.cost1=statF2(1, statPw[1]); // расчет затрат ресурсов
+//              upv.pv.cost0=statF2(0, statPw[0]); upv.pv.cost1=statF2(1, statPw[1]); // расчет затрат ресурсов
               statPw[0]=0; statPw[1]=0;         // расчет затрат ресурсов
               summCurr *= 22; summCurr /= 6;    // summCurr*220V./60 sec.
               summPower += summCurr/60;         // суммируем в мВт.
               summCurr = 0;
               if(countmin>59){
-                countmin = 0; upv.pv.date = sDate.Date; upv.pv.hours = sTime.Hours;
-                eep.sp.EnergyMeter += (summPower/100);// суммируем в Вт.
+                countmin = 0; /*upv.pv.date = sDate.Date; upv.pv.hours = sTime.Hours;*/
+//                eep.sp.EnergyMeter += (summPower/100);// суммируем в Вт.
                 summPower = 0;
                 EEPSAVE=1; waitset=1;
               }
             } 
         }
-  //---------------------------------------------- КАМЕРА ОТКЛЮЧЕНА -------------------------------------------------------------------------------
-        else if((eep.sp.condition&7)==0){
+ //---------------------------------------------- КАМЕРА ОТКЛЮЧЕНА -------------------------------------------------------------------------------
+        else if((eep.sp.state&7)==0){
             if(eep.sp.relayMode==4) valRun = 0;                            // ОТКЛЮЧИТЬ импульсное управление увлажнителем
             if(servis){                                                   // включен СЕРВИСНЫЙ режим
               switch (servis){
                  case 1: pwTriac0=MAXPULS; portOut.value = 0x01; break;   // НАГРЕВАТЕЛЬ
                  case 2: pwTriac1=MAXPULS; portOut.value = 0x02; break;   // УВЛАЖНИТЕЛЬ
-                 case 3: portOut.value = 0x04; upv.pv.pvFlap = FLAPOPEN; if(modules&8) chkflap(SETFLAP, &upv.pv.pvFlap); break; // ПРОВЕТРИВАНИЕ, СЕРВОПРИВОД 90грд.
+                 case 3: portOut.value = 0x04; upv.pv.flap = FLAPOPEN; if(modules&8) chkflap(SETFLAP, &upv.pv.flap); break; // ПРОВЕТРИВАНИЕ, СЕРВОПРИВОД 90грд.
                  case 4: portOut.value = 0x08; break;                     // ДОПОЛНИТЕЛЬНЫЙ КАНАЛ
                  case 5: portOut.value = 0x10; break;                     // ЛОТКИ ВВЕРХ
-                 default: portOut.value = 0; upv.pv.pvFlap=FLAPCLOSE;
-                          if(modules&8) chkflap(DATAREAD, &upv.pv.pvFlap);// ВСЕ ОТКЛЮЧЕНО, СЕРВОПРИВОД 0грд.
+                 default: portOut.value = 0; upv.pv.flap=FLAPCLOSE;
+                          if(modules&8) chkflap(DATAREAD, &upv.pv.flap);// ВСЕ ОТКЛЮЧЕНО, СЕРВОПРИВОД 0грд.
               }
             }
             else {
-               upv.pv.power=OFF; portOut.value &= 0x10; upv.pv.pvFlap=FLAPCLOSE; if(modules&8) chkflap(DATAREAD, &upv.pv.pvFlap); VENTIL = OFF;
+               upv.pv.power=OFF; portOut.value &= 0x10; upv.pv.flap=FLAPCLOSE; if(modules&8) chkflap(DATAREAD, &upv.pv.flap); VENTIL = OFF;
                if(currAdc>1000){upv.pv.errors|=0x04;}   // если сила тока > 1000 mV ПРОБОЙ СИМИСТОРА!
                if(countsec>59){
-                countsec=0; upv.pv.date = sDate.Date; upv.pv.hours = sTime.Hours;// ???????????????????????????????
+                countsec=0;
                 if(cardOk) SD_write(fileName, p_eeprom, p_rampv); else My_LinkDriver();  // ????????????????????????????????????????????
-                if(eep.sp.condition&0x80) rotate_trays(eep.sp.timer[0], eep.sp.timer[1], &upv.pv); // Поворот лотков при ОТКЛЮЧЕННОЙ камере
+                if(eep.sp.state&0x80) rotate_trays(eep.sp.timer[0], eep.sp.timer[1], &upv.pv); // Поворот лотков при ОТКЛЮЧЕННОЙ камере
                }
             }
         }
@@ -499,11 +501,11 @@ int main(void)
             if(servis==7) bluetoothName(eep.sp.identif);                                  // коррекция Broadcast name 
             servis=0;setup=0;displmode=0;psword=0;buf=0;topUser=TOPUSER;botUser=BOTUSER;} // возвращяемся к основному экрану, сброс пароля 
         }
-        if(TURN && eep.sp.timer[1]){if(--upv.pv.pvTimer==0) { upv.pv.pvTimer=eep.sp.timer[0]; TURN = OFF;}} // только при sp[1].timer>0 -> асиметричный режим
+        if(TURN && eep.sp.timer[1]){if(--upv.pv.nextTurn==0) { upv.pv.nextTurn=eep.sp.timer[0]; TURN = OFF;}} // только при sp[1].timer>0 -> асиметричный режим
         // ---------------------------------------------------------------------------------------------------------------------------------------------------
         if(HAL_GPIO_ReadPin(Bluetooth_STATE_GPIO_Port, Bluetooth_STATE_Pin)){ // если есть подключение по Bluetooth
-          HAL_UART_Transmit(&huart1,(uint8_t*)upv.pvdata,30,0x1000);
-          HAL_UART_Transmit(&huart1,(uint8_t*)eep.data,50,0x1000);
+          HAL_UART_Transmit(&huart1,(uint8_t*)upv.pvdata,20,0x1000);
+          HAL_UART_Transmit(&huart1,(uint8_t*)eep.data,40,0x1000);
 //          for(tmpbyte=0;tmpbyte<60;tmpbyte++){bluetoothData.buf[tmpbyte]=tmpbyte;}
 //          HAL_UART_Transmit(&huart1,(uint8_t*)bluetoothData.buf,60,0x1000);
           bluetoothData.TXBuffer[0] = 0x0D;  bluetoothData.TXBuffer[1] = 0x0A;  // "\r=<CR>-\n=<LF>"
@@ -511,15 +513,15 @@ int main(void)
         }
 //        else if(rx_buffer_overflow) check_command();      // если установлен флаг - "комманда компьютера"
       }
-      /* ---------------- ИНДИКАЦИЯ ------------------------------------------------- */
-      if(DISPLAY){
+  /* ============================================= END таймер TIM4 1 Гц. ======================================================================= */
+      
+      if(DISPLAY){/* ---------------- ИНДИКАЦИЯ ------------------------------------------------- */
         DISPLAY = 0;
         if(setup) display_setup(&eep.sp);
         else if(servis) display_servis(&upv.pv);
         else display(&eep.sp, &upv.pv);
-        ledOut(eep.sp.condition, upv.pv.warning, upv.pv.fuses); SendDataTM1638(); set_Output();
-      }
-  /* -------------------------------------------- END таймер TIM4 1 Гц. ------------------------------------------------------------------------ */     
+        ledOut(eep.sp.state, upv.pv.warning, upv.pv.fuses); SendDataTM1638(); set_Output();
+      }  
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
@@ -531,7 +533,7 @@ int main(void)
           if(pwTriac1 && (upv.pv.fuses&0x01)==0) {pwTriac1=valRun; HUMIDI = 1; LEDOFF = 1;}  // HUMIDIFIER On
         }
       }
-      if(LEDOFF) {LEDOFF = 0; ledOut(eep.sp.condition, upv.pv.warning, upv.pv.fuses); SendDataTM1638(); set_Output();}
+      if(LEDOFF) {LEDOFF = 0; ledOut(eep.sp.state, upv.pv.warning, upv.pv.fuses); SendDataTM1638(); set_Output();}
       if(beepOn < 0) {beepOn=0; HAL_GPIO_WritePin(Beeper_GPIO_Port, Beeper_Pin, GPIO_PIN_RESET);}  // Beeper Off
       if(bluetoothData.ind == 0){
         bluetoothData.timeOut=0;
