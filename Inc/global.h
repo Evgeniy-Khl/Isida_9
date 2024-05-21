@@ -6,7 +6,7 @@ extern struct rampv {
     uint8_t model;       // 1 байт ind=0  модель прибора
     uint8_t node;        // 1 байт ind=1  сетевой номер прибора
     int16_t pvT[MAX_DEVICES]; // 6 байт ind=2-ind=7   значения [MAX_DEVICES=3] датчиков температуры
-    uint8_t pvRH;        // 1 байт ind=8  значение датчика относительной влажности (маска = 0111 1111) 7 бит используеться как разрешение использования датчика влажности
+    uint8_t pvRH;        // 1 байт ind=8  значение датчика относительной влажности
     uint8_t pvCO2;       // 1 байт ind=9  значения датчика CO2 (от 4 -> 400 до 50 -> 5000)
     uint8_t nextTurn;    // 1 байт ind=10 значение таймера до начала поворота лотков
     uint8_t fan;         // 1 байт ind=11 скорость вращения тихоходного вентилятора
@@ -41,7 +41,7 @@ extern struct eeprom {
     uint8_t hysteresis; // 1 байт ind=25;       гистерезис канала увлажнения
     uint8_t zonality;   // 1 байт ind=26;       порог зональности в камере
     uint8_t turnTime;   // 1 байт ind=27;       время ожидания прохода лотков в секундах
-    uint8_t timeOut;    // 1 байт ind=28        время ожидания начала режима охлаждения
+    uint8_t waitCooling;// 1 байт ind=28        время ожидания начала режима охлаждения
     uint8_t pkoff[2];   // 2 байт ind=29;ind=30 пропорциональный коэфф.
     uint8_t ikoff[2];   // 2 байт ind=31;ind=32 интегральный коэфф.
     uint8_t identif;    // 1 байт ind=33;       сетевой номер прибора
@@ -69,11 +69,11 @@ extern union Byte portOut;
 //    struct byte bitfield;
 //}portOut;
 
-//#define CANAL1	portOut.bitfield.a0  // симистор НАГРЕВАТЕЛЯ
-//#define CANAL2	portOut.bitfield.a1  // реле или симистор УВЛАЖНЕНИЯ
-//#define EXT1		portOut.bitfield.a2  // реле вспомогательного канала
-//#define EXT2		portOut.bitfield.a3  // реле вспомогательного канала
-//#define TURN		portOut.bitfield.a4  // поворот
+//#define HEATER  portOut.bitfield.a0  // НАГРЕВАТЕЛЬ
+//#define HUMIDI	portOut.bitfield.a1  // УВЛАЖНИТЕЛЬ
+//#define FLAP		portOut.bitfield.a2  // Заслонка воздухообмена
+//#define EXT2		portOut.bitfield.a3  // Вспомогательный канал
+//#define TURN		portOut.bitfield.a4  // Поворот лотков
 //#define COOLER	portOut.bitfield.a5  // вентилятор охладителя
 
 #endif /* __GLOBAL_H */

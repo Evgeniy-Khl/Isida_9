@@ -185,10 +185,10 @@ void checkkey(struct eeprom *t, int16_t pvT0){
               buf++; EEPSAVE=1; waitkey=WAITCOUNT;
               switch (servis)
                {
-                 case 7:  t->identif = buf&0x3F; break;      // C7 -> identif
+                 case 7:  t->identif = buf&0x3F; break;      // C7 -> identif (1-63)
 //                 case 8:  t->ForceHeat=buf&0x3F; break;      // C8 -> FORCEHEAT Форсированный нагрев
                  case 9:  t->turnTime= buf&0x3FF; break;     // C9 -> TURNTIME время ожидания прохода лотков в сек.
-                 case 10: t->timeOut=(buf&0x3F)*6; break;    // C10-> TIME OUT время ожидания начала режима охлаждения в мин. 30 мин. *6 =180 => 1800 сек.
+                 case 10: t->waitCooling=(buf&0x3F)*6; break;    // C10-> TIME OUT время ожидания начала режима охлаждения в мин. 30 мин. *6 =180 => 1800 сек.
 //                 case 11:  break; // C11-> разрешено использовать HIH-5030/AM2301
                  case 12: t->koffCurr= buf&0xFF; break;      // C12-> koffCurr маштабный коэф. по току симистора
 //                 case 13: t->coolOn =  buf&0x7F; break;      // C13-> порог включения вентилятора обдува сисмистора
@@ -204,7 +204,7 @@ void checkkey(struct eeprom *t, int16_t pvT0){
                  case 7: buf=t->identif; break;           // C7 -> identif
 //                 case 8: buf=t->ForceHeat; break;         // C8 -> FORCEHEAT
                  case 9: buf=t->turnTime; break;          // C9 -> TURNTIME время ожидания прохода лотков в сек.
-                 case 10: buf=t->timeOut/6; break;        // C10-> TIME OUT время ожидания начала режима охлаждения в мин. 180/6 =30 мин.
+                 case 10: buf=t->waitCooling/6; break;        // C10-> TIME OUT время ожидания начала режима охлаждения в мин. 180/6 =30 мин.
 //                 case 11:  break; // C11-> разрешено использовать HIH-5030/AM2301
                  case 12: buf=t->koffCurr; break;         // C12-> koffCurr маштабный коэф. по току симистора
 //                 case 13: buf=t->coolOn; break;           // C13-> порог включения вентилятора обдува сисмистора
@@ -221,7 +221,7 @@ void checkkey(struct eeprom *t, int16_t pvT0){
                  case 7:  t->identif = buf&0x3F; break;      // C7 -> identif
 //                 case 8:  t->ForceHeat=buf&0x3F; break;      // C8 -> FORCEHEAT Форсированный нагрев
                  case 9:  t->turnTime= buf&0x3FF; break;     // C9 -> TURNTIME время ожидания прохода лотков в сек.
-                 case 10: t->timeOut=(buf&0x3F)*6; break;    // C10-> TIME OUT время ожидания начала режима охлаждения в мин. 30 мин. *6 =180 => 1800 сек.
+                 case 10: t->waitCooling=(buf&0x3F)*6; break;    // C10-> TIME OUT время ожидания начала режима охлаждения в мин. 30 мин. *6 =180 => 1800 сек.
 //                 case 11:  break; // C11-> разрешено использовать HIH-5030/AM2301
                  case 12: t->koffCurr= buf&0xFF; break;      // C12-> koffCurr маштабный коэф. по току симистора
 //                 case 13: t->coolOn =  buf&0x7F; break;      // C13-> порог включения вентилятора обдува сисмистора

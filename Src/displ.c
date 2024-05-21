@@ -5,11 +5,11 @@
 
 extern int8_t displmode, countsec, disableBeep, keynum;
 extern uint8_t ok0, ok1, psword, setup, servis, cardOk;
-extern int16_t buf, currAdc, humAdc;
+extern int16_t buf, currAdc, humAdc, coolerAdc;
 
 //------- Светодиодная индикация --------------------------------------------------------- 
-// 0-нагрев, 1-увлаж.,2-заслонка,3-дополнит.,4-лотки,5-,6-программа,7-SD карта
-// 0-обрыв нагрев, 1-преохр.увлаж.,2-преохр.заслонка,3-преохр.дополнит.,4-ДВЕРЬ,5-ОСТАНОВ вент.,6-НЕТ поворота,7-ГОРИЗОНТ
+// 0-нагрев, 1-увлаж.,2-заслонка,3-дополнит.,4-лотки,5-????,6-программа,7-SD карта
+// 0-обрыв нагрев, 1-КЗ.увлаж.,2-КЗ.заслонка,3-КЗ.дополнит.,4-ДВЕРЬ,5-ОСТАНОВ вент.,6-НЕТ поворота,7-ГОРИЗОНТ
 void ledOut(uint8_t state, uint8_t warning, uint8_t fuses){
  uint8_t led, i;
   for(i=0;i<8;i++) LedOff(i,3);     // All LED Off
@@ -24,10 +24,15 @@ void ledOut(uint8_t state, uint8_t warning, uint8_t fuses){
     if(state&0x02) LedOn(5,1);  // Режим "подгототка к ОХЛАЖДЕНИЮ"
 //    if(prog) LedOn(6,1);  // работает по программе
     if(cardOk) LedOn(7,1);  // идет запись на SD карту
-    if(!HAL_GPIO_ReadPin(Door_GPIO_Port, Door_Pin)) LedOn(4,2);  // концевик дверей
+//    if(!HAL_GPIO_ReadPin(Door_GPIO_Port, Door_Pin)) LedOn(4,2);  // концевик дверей
+    if(warning&0x01) LedOn(0,2);
+    if(warning&0x02) LedOn(1,2);
+    if(warning&0x04) LedOn(2,2);
+    if(warning&0x08) LedOn(3,2);
+    if(warning&0x10) LedOn(4,2);
     if(warning&0x20) LedOn(5,2);    // ОСТАНОВ вентилятора    
     if(warning&0x40) LedOn(6,2);    // НЕТ поворота
-    if(state&0x10) LedOn(7,2);  // ГОРИЗОНТ  установлен
+    if(warning&0x80) LedOn(7,2);  // ГОРИЗОНТ  установлен (state&0x10)
   }
 }
 
@@ -243,7 +248,7 @@ void display_setup(struct eeprom *t){
 
 void display_servis(struct rampv *ram){
 	switch (servis){
-		case 1: displ_1(currAdc,COMMA); clr_2(); break;                               // C1 -> НАГРЕВ; Сила тока
+		case 1: displ_1(currAdc,COMMA); displ_2(coolerAdc,NOCOMMA); break;            // C1 -> НАГРЕВ; Сила тока
 		case 2: displ_1(ram->pvRH,NOCOMMA); displ_2(humAdc,NOCOMMA); break;           // C2 -> ВЛАЖНОСТЬ; значение АЦП
 		case 3: displ_1(ram->pvCO2,NOCOMMA); displ_2(ram->flap,NOCOMMA); break;     // C3 -> ЗАСЛОНКА; СО2, СЕРВОПРИВОД град.
 		case 8: displ_1(buf,COMMA); clr_2(); break;                                   // C8 -> Уставка форсированного нагрева

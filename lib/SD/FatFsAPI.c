@@ -56,15 +56,15 @@ uint8_t My_LinkDriver(void){
 uint8_t SD_write(const char* flname, struct eeprom *t, struct rampv *ram){
  uint8_t item;
   item = f_mount(&SDFatFs,(const char*)USERPath,0);
-  if(item==FR_OK){  // Монтируем SD карту!
+  if(item==FR_OK){      // Монтируем SD карту!
     item = f_open(&MyFile, flname, FA_OPEN_EXISTING|FA_WRITE);
-    if(item==FR_OK){
+    if(item==FR_OK){    // Открываем файл
       uint32_t f_size = MyFile.fsize;
       item = f_lseek(&MyFile, f_size);
-      if (item==FR_OK){
+      if (item==FR_OK){ // Ищем конц файла
         UnixTime = timestamp(); //  персчет в UnixTime
         sprintf(buffile,"%u; %2x;%5.1f;%4.1f;%5.1f;%4.1f;",UnixTime,t->state,(float)ram->pvT[0]/10,(float)t->spT[0]/10,(float)ram->pvT[1]/10,(float)t->spT[1]/10);
-        if(ram->pvRH<=1000) sprintf(txt,"%5.1f;%4.1f;",(float)ram->pvRH/10,(float)t->spRH[1]/10);
+        if(ram->pvRH<=100) sprintf(txt,"%5u%%;%5u%%;",ram->pvRH,t->spRH[1]);
         else sprintf(txt," --.-;--.-;");
         strcat(buffile,txt);
         sprintf(txt,"%3u; %2x;%2x;%2x;%2x\r\n",ram->power,portOut.value,ram->warning,ram->errors,ram->fuses);

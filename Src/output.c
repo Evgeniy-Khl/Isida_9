@@ -32,7 +32,7 @@ uint8_t humCondition(int16_t err, uint8_t alarm, uint8_t extOn){
 int16_t UpdatePID(int16_t err, uint8_t cn, struct eeprom *t){
  int16_t maxVal;
  float pPart, Ud;
-  if(cn) maxVal=t->maxRun; else maxVal=MAXPULS; // maxRun = 10000 = 10 секунд; 1100 -> 1.1 сек.
+  if(cn) maxVal=t->maxRun; else maxVal=MAXPULS; // maxRun = 10000 = 10 секунд; MAXPULS = 250 // 1100 -> 1.1 сек.
   pPart = (float) err * t->pkoff[cn];               // расчет пропорциональной части
 //---- функция ограничения pPart ---------------
   if (pPart < 0) pPart = 0;

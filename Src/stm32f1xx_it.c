@@ -63,6 +63,7 @@ extern RTC_HandleTypeDef hrtc;
 extern TIM_HandleTypeDef htim3;
 extern TIM_HandleTypeDef htim4;
 extern UART_HandleTypeDef huart1;
+extern UART_HandleTypeDef huart3;
 /* USER CODE BEGIN EV */
 extern struct rs485 rs485Data;
 extern struct bluetooth bluetoothData;
@@ -195,11 +196,12 @@ void PendSV_Handler(void)
 void SysTick_Handler(void)
 {
   /* USER CODE BEGIN SysTick_IRQn 0 */
-  pwTriac0--;
+//  pwTriac0--;
   pwTriac1--;
   pulsPeriod--;
   beepOn--;
   bluetoothData.timeOut++;
+
   /* USER CODE END SysTick_IRQn 0 */
   HAL_IncTick();
   /* USER CODE BEGIN SysTick_IRQn 1 */
@@ -248,11 +250,14 @@ void DMA1_Channel1_IRQHandler(void)
 void TIM3_IRQHandler(void)
 {
   /* USER CODE BEGIN TIM3_IRQn 0 */
-  /* ------  таймер TIM3 с периодом 125 мс.  ----*/
+  /* ------  таймер TIM3 с периодом 5 мс.  ----*/
   /* USER CODE END TIM3_IRQn 0 */
   HAL_TIM_IRQHandler(&htim3);
   /* USER CODE BEGIN TIM3_IRQn 1 */
+  rs485Data.timeOut++;
   ++getButton;
+  pwTriac0--;
+//  if(--pwTriac0 <= 0) {pwTriac0=0; HEATER = 0; LEDOFF = 1;}  // HEATER Off
   /* USER CODE END TIM3_IRQn 1 */
 }
 
@@ -283,6 +288,20 @@ void USART1_IRQHandler(void)
   /* USER CODE BEGIN USART1_IRQn 1 */
 
   /* USER CODE END USART1_IRQn 1 */
+}
+
+/**
+  * @brief This function handles USART3 global interrupt.
+  */
+void USART3_IRQHandler(void)
+{
+  /* USER CODE BEGIN USART3_IRQn 0 */
+
+  /* USER CODE END USART3_IRQn 0 */
+  HAL_UART_IRQHandler(&huart3);
+  /* USER CODE BEGIN USART3_IRQn 1 */
+
+  /* USER CODE END USART3_IRQn 1 */
 }
 
 /* USER CODE BEGIN 1 */

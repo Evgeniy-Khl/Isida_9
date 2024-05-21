@@ -71,8 +71,8 @@ void Error_Handler(void);
 #define FUSE4_GPIO_Port GPIOA
 #define FUSE5_Pin GPIO_PIN_3
 #define FUSE5_GPIO_Port GPIOA
-#define SD_CS_Pin GPIO_PIN_4
-#define SD_CS_GPIO_Port GPIOA
+#define ADC_COOLER_Pin GPIO_PIN_4
+#define ADC_COOLER_GPIO_Port GPIOA
 #define SD_SCK_Pin GPIO_PIN_5
 #define SD_SCK_GPIO_Port GPIOA
 #define SD_MISO_Pin GPIO_PIN_6
@@ -107,8 +107,8 @@ void Error_Handler(void);
 #define Door_GPIO_Port GPIOB
 #define OVERHEAT_Pin GPIO_PIN_4
 #define OVERHEAT_GPIO_Port GPIOB
-#define cmdH_05_Pin GPIO_PIN_5
-#define cmdH_05_GPIO_Port GPIOB
+#define SD_CS_Pin GPIO_PIN_5
+#define SD_CS_GPIO_Port GPIOB
 #define mem_SCL_Pin GPIO_PIN_6
 #define mem_SCL_GPIO_Port GPIOB
 #define mem_SDA_Pin GPIO_PIN_7
@@ -122,7 +122,7 @@ void Error_Handler(void);
 #define EEPROM_I2C_PORT hi2c1
 #define EEP_DATA      40      // ВСЕГО 40 bytes
 #define MAX_DEVICES   3       // максимальное количество микросхем DS18b20 подключенных 1 Wire шине
-#define WAITCOUNT     16      // максимальная пауза перед реакцией на кнопку
+#define WAITCOUNT     240     // максимальная пауза перед реакцией на кнопку
 #define MAXOWNER 	    12      // максимальная количество меню для пользователя
 #define BOTUSER 	    16      // начальный пункт меню для специалиста
 #define TOPUSER 	    18      // максимальная количество меню для специалиста кроме ШИМ
@@ -143,7 +143,7 @@ void Error_Handler(void);
 #define SENSOREGG   171
 #define DURATION    100
 #define COUNT       500
-#define MAXPULS     1100    // 1.1 сек.
+#define MAXPULS     250 // 1100    // 1.1 сек.
 
 #define ID_HALL         0xF1    // идентификатор блока
 #define ID_HORIZON      0xF3    // идентификатор блока
@@ -271,6 +271,7 @@ struct bluetooth{
 #define FLAP		portOut.bitfield.a2  // Заслонка воздухообмена
 #define EXT2		portOut.bitfield.a3  // Вспомогательный канал
 #define TURN		portOut.bitfield.a4  // Поворот лотков
+#define COOLER	portOut.bitfield.a6  // вентилятор охладителя
 
 //typedef struct
 //{

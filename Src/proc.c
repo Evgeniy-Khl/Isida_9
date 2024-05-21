@@ -99,14 +99,21 @@ void chkdoor(struct eeprom *t, struct rampv *ram){
        if (t->extendMode==1) EXT2 = ON; // доп. канал (extendMode==1->ВЕНТИЛЯЦИЯ)
       }
      else if((t->state&7)==1) beeper_ON(DURATION*5);//-- если камера ВКЛ. то вкл. тревогу.
-     else if(t->state&4) {if(++counter>t->timeOut*10) {beeper_ON(DURATION); ALARM = 1;}}//-- если превышено ожидание то вкл. тревогу.(Режим "подгототка к ВКЛЮЧЕНИЮ")
+     else if(t->state&4) {if(++counter>t->waitCooling*10) {beeper_ON(DURATION); ALARM = 1;}}//-- если превышено ожидание то вкл. тревогу.(Режим "подгототка к ВКЛЮЧЕНИЮ")
    }
 }
 
-#define SYSCLOCK 72000000U
+#define SYSCLOCK 72000000U  // Определение системной тактовой частоты
 void sysTick_Init(void){
+  // устанавливает значение SysTick Reload Register (LOAD) для генерации прерывания каждую миллисекунду
+  // Она использует макрос MODIFY_REG для изменения соответствующих битов LOAD регистра SysTick.
+  // если SYSCLOCK равно 72 МГц, то значение LOAD будет установлено на 71999
   MODIFY_REG(SysTick->LOAD, SysTick_LOAD_RELOAD_Msk, SYSCLOCK / 1000 - 1);
+  // сбрасывает текущее значение SysTick Counter Register (VAL) в 0, чтобы начать счет заново.
   CLEAR_BIT(SysTick->VAL, SysTick_VAL_CURRENT_Msk);
+  // настраивает регистр управления SysTick (CTRL). 
+  // Бит CLKSOURCE устанавливается, чтобы использовать системную тактовую частоту в качестве источника тактирования для SysTick. 
+  // Бит ENABLE устанавливается для включения SysTick. Бит TICKINT устанавливается для разрешения генерации прерывания SysTick.
   SET_BIT(SysTick->CTRL, SysTick_CTRL_CLKSOURCE_Msk | SysTick_CTRL_ENABLE_Msk | SysTick_CTRL_TICKINT_Msk);
 }
 
@@ -115,9 +122,15 @@ void beeper_ON(uint16_t duration){
   beepOn = duration;
 }
 
+//---- запись в микросхему 74HC595D ----
 void set_Output(void){
   HAL_SPI_Transmit(&hspi2,(uint8_t*)&portOut, 1, 5000);
   RCK_H();
   RCK_L();
 }
 
+void set_Pulse(uint16_t val){
+  PB5_H();
+  for (uint16_t i = 0; i < val; i++) __NOP();
+  PB5_L();
+}

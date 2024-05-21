@@ -99,11 +99,17 @@ void HAL_ADC_MspInit(ADC_HandleTypeDef* hadc)
     /* Peripheral clock enable */
     __HAL_RCC_ADC1_CLK_ENABLE();
   
+    __HAL_RCC_GPIOA_CLK_ENABLE();
     __HAL_RCC_GPIOB_CLK_ENABLE();
     /**ADC1 GPIO Configuration    
+    PA4     ------> ADC1_IN4
     PB0     ------> ADC1_IN8
     PB1     ------> ADC1_IN9 
     */
+    GPIO_InitStruct.Pin = ADC_COOLER_Pin;
+    GPIO_InitStruct.Mode = GPIO_MODE_ANALOG;
+    HAL_GPIO_Init(ADC_COOLER_GPIO_Port, &GPIO_InitStruct);
+
     GPIO_InitStruct.Pin = ADC_CURR_Pin|ADC_HUM_Pin;
     GPIO_InitStruct.Mode = GPIO_MODE_ANALOG;
     HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
@@ -149,9 +155,12 @@ void HAL_ADC_MspDeInit(ADC_HandleTypeDef* hadc)
     __HAL_RCC_ADC1_CLK_DISABLE();
   
     /**ADC1 GPIO Configuration    
+    PA4     ------> ADC1_IN4
     PB0     ------> ADC1_IN8
     PB1     ------> ADC1_IN9 
     */
+    HAL_GPIO_DeInit(ADC_COOLER_GPIO_Port, ADC_COOLER_Pin);
+
     HAL_GPIO_DeInit(GPIOB, ADC_CURR_Pin|ADC_HUM_Pin);
 
     /* ADC1 DMA DeInit */
@@ -529,6 +538,9 @@ void HAL_UART_MspInit(UART_HandleTypeDef* huart)
     GPIO_InitStruct.Pull = GPIO_NOPULL;
     HAL_GPIO_Init(RS485_RX_GPIO_Port, &GPIO_InitStruct);
 
+    /* USART3 interrupt Init */
+    HAL_NVIC_SetPriority(USART3_IRQn, 0, 0);
+    HAL_NVIC_EnableIRQ(USART3_IRQn);
   /* USER CODE BEGIN USART3_MspInit 1 */
 
   /* USER CODE END USART3_MspInit 1 */
@@ -578,6 +590,8 @@ void HAL_UART_MspDeInit(UART_HandleTypeDef* huart)
     */
     HAL_GPIO_DeInit(GPIOB, RS485_TX_Pin|RS485_RX_Pin);
 
+    /* USART3 interrupt DeInit */
+    HAL_NVIC_DisableIRQ(USART3_IRQn);
   /* USER CODE BEGIN USART3_MspDeInit 1 */
 
   /* USER CODE END USART3_MspDeInit 1 */

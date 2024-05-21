@@ -19,6 +19,7 @@ void init(struct eeprom *t, struct rampv *ram){
   ds18b20_count(MAX_DEVICES);             // провер€ем наличие датчиков если error = 0 датчики найдены
   setChar(0,ds18b20_amount); setChar(1,SIMBL_d); setChar(2,0);  // "2d0"
 //  if(ds18b20_amount > 2) checkSensor(); // провер€ем на подключение датчика температуры скорлупы €йца
+
   if(t->spRH[1]>50){                      // если разрешено ищем HIH-5030 в V humAdc 
     if(humAdc > 500){                     // humAdc => 500 mV дл€ RH=0%
       HIH5030 = 1; setChar(2,1);          // если обнаружен HIH-5030 "2d1"

@@ -154,7 +154,7 @@ void eep_initial(uint16_t memAddr, uint8_t *data){
         100,// data[37];    ip[3]
           0,// data[38]; не используется !!!!!!!!!!!!!!!!!!!!!!!!!
           0,// data[39]; не используется !!!!!!!!!!!!!!!!!!!!!!!!!
-	};
+	};        // ВСЕГО 40 bytes
 	memcpy(data, source, EEP_DATA);   // копирование одного масива в другой
 	ret_stat = HAL_I2C_IsDeviceReady(&EEPROM_I2C_PORT, eepMem.eepAddr, 1, HAL_MAX_DELAY);
 	if(ret_stat) {dspl_error(ret_stat); return;}

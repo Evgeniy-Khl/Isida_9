@@ -70,7 +70,7 @@ UART_HandleTypeDef huart3;
 /* USER CODE BEGIN PV */
 RTC_TimeTypeDef sTime;
 RTC_DateTypeDef sDate;
-volatile uint16_t adc[2] = {0,0};      // у нас два канала АЦП, поэтому массив из двух элементов
+volatile uint16_t adc[3] = {0,0,0};    // у нас три канала АЦП, поэтому массив из двух элементов
 volatile uint8_t flag = 0;             // флаг окончания преобразования АЦП
 char fileName[15]={0};
 union Byte portOut;
@@ -102,7 +102,7 @@ ext[2] модуль СО2
 ext[3] модуль заслонок
 */
 int16_t pwTriac0, pwTriac1, pulsPeriod, beepOn, alarmErr; 
-uint16_t currAdc, humAdc, statPw[2]; 
+uint16_t currAdc, humAdc, coolerAdc, statPw[2]; 
 uint32_t summCurr=0, summPower=0, UnixTime;
 /* ----------------------------- BEGIN point value -------------------------------------- */
 union pointvalue{
@@ -152,7 +152,7 @@ union serialdata{
     uint8_t hysteresis; // 1 байт ind=25;       гистерезис канала увлажнения
     uint8_t zonality;   // 1 байт ind=26;       порог зональности в камере
     uint8_t turnTime;   // 1 байт ind=27;       время ожидания прохода лотков в секундах
-    uint8_t timeOut;    // 1 байт ind=28        время ожидания начала режима охлаждения
+    uint8_t waitCooling;// 1 байт ind=28        время ожидания начала режима охлаждения
     uint8_t pkoff[2];   // 2 байт ind=29;ind=30 пропорциональный коэфф.
     uint8_t ikoff[2];   // 2 байт ind=31;ind=32 интегральный коэфф.
     uint8_t identif;    // 1 байт ind=33;       сетевой номер прибора
@@ -228,7 +228,7 @@ int main(void)
   HAL_Init();
 
   /* USER CODE BEGIN Init */
-  sysTick_Init();   // 1mS
+  sysTick_Init();   // устанавливает значение SysTick Reload Register (LOAD) для генерации прерывания каждую миллисекунду (1mS)
   eepMem.eepAddr = (0x50 << 1);  // HAL expects address to be shifted one bit to the left
   eepMem.sizeAddr = I2C_MEMADD_SIZE_8BIT;
   eepMem.pageSize = 16;          // AT24C04A или AT24C08A. The 4K/8K EEPROM is capable of 16-byte page writes
@@ -261,21 +261,22 @@ int main(void)
   MX_RTC_Init();
   MX_USART3_UART_Init();
   /* USER CODE BEGIN 2 */
-  set_Output();
+  COOLER = 1;     // включить вентилятор
+  set_Output();   // запись в микросхему 74HC595D
 	HAL_TIM_Base_Start_IT(&htim4);	/* ------  таймер 1Гц.   период 1000 мс.  ----*/
-	HAL_TIM_Base_Start_IT(&htim3);	/* ------  таймер 8Гц.   период 125 мс.  ----*/
+	HAL_TIM_Base_Start_IT(&htim3);	/* ------  таймер 200Гц.  период 5 мс.  --таймер 10Гц.  период 100 мс.--*/
   HAL_ADCEx_Calibration_Start(&hadc1);            // калибровкa АЦП
   HAL_UART_Receive_IT(&huart1,(uint8_t*)bluetoothData.RXBuffer,2);
   HAL_GPIO_WritePin(LED_GPIO_Port, LED_Pin, GPIO_PIN_SET);  // LED Off
   //--------- ХОЛОСТОЕ ВЫПОЛНЕНИЕ при котором каналы распологаются правильно --------
-//  HAL_ADC_Start_DMA(&hadc1, (uint32_t*)&adc, 2);  // стартуем АЦП
+//  HAL_ADC_Start_DMA(&hadc1, (uint32_t*)&adc, 3);  // стартуем АЦП
 //  while(flag==0);
 //  flag = 0;
   //----------- Теперь каналы сдвинуты. Последний стал первым -----------------------
-  HAL_ADC_Start_DMA(&hadc1, (uint32_t*)&adc, 2);  // стартуем АЦП
+  HAL_ADC_Start_DMA(&hadc1, (uint32_t*)&adc, 3);  // стартуем АЦП
   while(flag==0);
   flag = 0;
-  currAdc = adc[0]; humAdc = adc[1];
+  currAdc = adc[0]; humAdc = adc[1]; coolerAdc = adc[2];
   adc[0] = 0; adc[1] = 0;
   //******************************************************************************  
   HAL_RTC_WaitForSynchro(&hrtc);                      // Після увімкнення, пробудження, скидання, потрібно викликати цю функцію  
@@ -306,7 +307,8 @@ int main(void)
           HAL_Delay(200); 
       }
   }
-  if (eep.sp.identif == 0 || eep.sp.identif > 30) eep_initial(0x0000, eep.data);// сброс к заводским настройкам
+  // *** -------- сброс к заводским настройкам ------------- ***
+  if (eep.sp.identif == 0) eep_initial(0x0000, eep.data);
 
   init(&eep.sp, &upv.pv);   // инициализация аппаратной части и подключаемых модулей
   temperature_check(&upv.pv);
@@ -320,18 +322,19 @@ int main(void)
   //----------------------------------- Теперь будем опрашивать три канала на одном АЦП с помощью DMA… -------------------------------------------
 
   /*** ------------------------------------------- BEGIN таймер TIM3 6 Гц. ----------------------------------------------------------------------- ***/
-      if (getButton>waitkey/4) checkkey(&eep.sp, upv.pv.pvT[0]);  // клавиатура
+      if (getButton>waitkey/4) checkkey(&eep.sp, upv.pv.pvT[0]);  // клавиатура waitkey=WAITCOUNT=16 максимальная пауза перед реакцией на кнопку
 
   /*** ------------------------------------------- BEGIN таймер TIM4 1 Гц. ----------------------------------------------------------------------- ***/
       if(CHECK){   // ------- новая секунда --------------------------------------------------------------
-        CHECK=0; DISPLAY=1; ALARM=0; upv.pv.errors=0; upv.pv.warning=0;
-        HAL_ADC_Start_DMA(&hadc1, (uint32_t*)&adc, 2);
+        CHECK=0; DISPLAY=1; ALARM=0; upv.pv.errors=0;// upv.pv.warning=0;
+        HAL_ADC_Start_DMA(&hadc1, (uint32_t*)&adc, 3);
         while(flag==0);
         flag = 0;
         currAdc = adcTomV(adc[0]);      // Channel 8 (Port B0) в мВ.
-        humAdc  = adcTomV(adc[1]);      // Channel 9 (Port B1) в мВ.
-//        if(HIH5030) humAdc  = adcTomV(adc[1]);
-        adc[0] = 0; adc[1] = 0;
+//        humAdc  = adcTomV(adc[1]);       
+        coolerAdc = adcTomV(adc[2]/10); // Channel 4 (Port A4) в 1550мВ./10 = 155 единиц
+        if(HIH5030) humAdc  = adcTomV(adc[1]);// Channel 9 (Port B1) в мВ.
+        adc[0] = 0; adc[1] = 0; adc[2] = 0;
 
     //-------------------- перевіримо чи настав інший день ------------
         if (((sTime.Hours+sTime.Minutes+sTime.Seconds)<=4)){
@@ -348,6 +351,7 @@ int main(void)
            }
            else upv.pv.pvRH = 200;
         }
+        else upv.pv.pvRH = 0;
     //-------------------- Состояние дверей; "подгототка к ОХЛАЖДЕНИЮ"; "подгототка к ВКЛЮЧЕНИЮ" --
         chkdoor(&eep.sp, &upv.pv);
         if((eep.sp.state&0x18)==0x08) eep.sp.state|= sethorizon(eep.sp.timer[0], eep.sp.turnTime, &upv.pv);  // Установка в горизонтальное положение
@@ -379,11 +383,11 @@ int main(void)
               int16_t err = eep.sp.spT[0] - upv.pv.pvT[0];
               if(heatCondition(err, eep.sp.alarm[0], eep.sp.extOn[0])) upv.pv.warning |= 0x01;  // ОТКЛОНЕНИЕ по температуре
               pwTriac0 = heater(err, &eep.sp);
-              if(pwTriac0) HEATER = 1;  // HEATER On
+              if(pwTriac0) {HEATER = 1; /*set_Pulse(250);*/}  // HEATER On  32 mks
             }
             else upv.pv.errors |= 0x01;   // ОШИБКА ДАТЧИКА температуры !!!
           }
-          upv.pv.power = pwTriac0 / 10;
+          upv.pv.power = pwTriac0 / 2;
           if(upv.pv.power > 100) upv.pv.power = 100;
           statPw[0] += upv.pv.power;      // расчет эконометра
       // ---------------------- УВЛАЖНИТЕЛЬ --------------------------------
@@ -437,7 +441,7 @@ int main(void)
             if(!(HIH5030||AM2301) && (upv.pv.pvT[1]-upv.pv.pvT[0])>20){
               if(upv.pv.pvT[1] < 850){
                 upv.pv.warning =0x10; 					// Неправильная конфигурация датчиков !!
-                pwTriac0 = 500;
+                pwTriac0 = 50;
               }
               else upv.pv.errors |= 0x02;   // ОШИБКА ДАТЧИКА влажности !!!
             }
@@ -500,7 +504,7 @@ int main(void)
         if(waitset){
           if(--waitset==0){
             if(EEPSAVE) eep_write(0x0000, eep.data);                                      // запись в энергонезависимую память
-            if(servis==7) bluetoothName(eep.sp.identif);                                  // коррекция Broadcast name 
+            if(servis==7){upv.pv.node = eep.sp.identif; bluetoothName(eep.sp.identif);}   // коррекция Broadcast name 
             servis=0;setup=0;displmode=0;psword=0;buf=0;topUser=TOPUSER;botUser=BOTUSER;} // возвращяемся к основному экрану, сброс пароля 
         }
         if(TURN && eep.sp.timer[1]){if(--upv.pv.nextTurn==0) { upv.pv.nextTurn=eep.sp.timer[0]; TURN = OFF;}} // только при sp[1].timer>0 -> асиметричный режим
@@ -529,13 +533,14 @@ int main(void)
         if(setup) display_setup(&eep.sp);
         else if(servis) display_servis(&upv.pv);
         else display(&eep.sp, &upv.pv);
-        ledOut(eep.sp.state, upv.pv.warning, upv.pv.fuses); SendDataTM1638(); set_Output();
+        ledOut(eep.sp.state, upv.pv.warning, upv.pv.fuses); SendDataTM1638(); set_Output(); // запись в микросхему 74HC595D
       }
   /*** ======================================================================================================================================== ***/
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
-      if(pwTriac0 < 0) {pwTriac0=0; HEATER = 0; LEDOFF = 1;}  // HEATER Off
+      if(coolerAdc < 250) COOLER=0; else if(coolerAdc > 300) COOLER = 1;  // температура 40С = 2,50V; 55C = 3.0V
+      if(pwTriac0 < 0) {pwTriac0=0; HEATER = 0; LEDOFF = 1; /*set_Pulse(500);*/}  // HEATER Off  64 mks
       if(pwTriac1 < 0) {pwTriac1=0; HUMIDI = 0; LEDOFF = 1;}  // HUMIDIFIER Off
       if(eep.sp.relayMode==4){                                 // импульсный режим работы насоса
         if(pulsPeriod < 0){
@@ -543,7 +548,7 @@ int main(void)
           if(pwTriac1 && (upv.pv.fuses&0x01)==0) {pwTriac1=valRun; HUMIDI = 1; LEDOFF = 1;}  // HUMIDIFIER On
         }
       }
-      if(LEDOFF) {LEDOFF = 0; ledOut(eep.sp.state, upv.pv.warning, upv.pv.fuses); SendDataTM1638(); set_Output();}
+      if(LEDOFF) {LEDOFF = 0; ledOut(eep.sp.state, upv.pv.warning, upv.pv.fuses); SendDataTM1638(); set_Output();}  // запись в микросхему 74HC595D
       if(beepOn < 0) {beepOn=0; HAL_GPIO_WritePin(Beeper_GPIO_Port, Beeper_Pin, GPIO_PIN_RESET);}  // Beeper Off
   /* ------------------------------------------------------------------------------------------------------------------ */
       if(bluetoothData.ind == 0){
@@ -557,15 +562,10 @@ int main(void)
         bluetoothData.timeOut = 0;
       }
   // ---------------------------- RS485 -----------------------------
-      if(rs485Data.ind == 0){
-          rs485Data.timeOut=0;
-          HAL_UART_Receive_IT(&huart3,(uint8_t*)rs485Data.RXBuffer,16); // запуск приема (100 байт при 9600 b/s Время передачи данных 0,1 сек.)
-      }
-      else if(rs485Data.timeOut > 5) {
-          // ошибка таймаута больше 500 mS.
-          HAL_UART_AbortReceive_IT(&huart3); // остановка приема (https://www.translatorscafe.com/unit-converter/ru-RU/calculator/data-transfer-time/)
-          rs485Data.ind = 0; // признак ожидание первого байта
-          rs485Data.timeOut = 0;
+      if(rs485Data.timeOut > 40){ // 200 mS
+        rs485Data.ind = 0; // признак ожидание первого байта  
+        rs485Data.timeOut=0;
+        HAL_UART_Receive_IT(&huart3,(uint8_t*)rs485Data.RXBuffer,16); // запуск приема 16 byte (96 байт при 9600 b/s Время передачи данных 0,101 сек.)
       }
   /* ================================================================================================================== */
       
@@ -655,7 +655,7 @@ static void MX_ADC1_Init(void)
   hadc1.Init.DiscontinuousConvMode = DISABLE;
   hadc1.Init.ExternalTrigConv = ADC_SOFTWARE_START;
   hadc1.Init.DataAlign = ADC_DATAALIGN_RIGHT;
-  hadc1.Init.NbrOfConversion = 2;
+  hadc1.Init.NbrOfConversion = 3;
   if (HAL_ADC_Init(&hadc1) != HAL_OK)
   {
     Error_Handler();
@@ -664,7 +664,7 @@ static void MX_ADC1_Init(void)
   */
   sConfig.Channel = ADC_CHANNEL_8;
   sConfig.Rank = ADC_REGULAR_RANK_1;
-  sConfig.SamplingTime = ADC_SAMPLETIME_1CYCLE_5;
+  sConfig.SamplingTime = ADC_SAMPLETIME_55CYCLES_5;
   if (HAL_ADC_ConfigChannel(&hadc1, &sConfig) != HAL_OK)
   {
     Error_Handler();
@@ -673,6 +673,14 @@ static void MX_ADC1_Init(void)
   */
   sConfig.Channel = ADC_CHANNEL_9;
   sConfig.Rank = ADC_REGULAR_RANK_2;
+  if (HAL_ADC_ConfigChannel(&hadc1, &sConfig) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  /** Configure Regular Channel 
+  */
+  sConfig.Channel = ADC_CHANNEL_4;
+  sConfig.Rank = ADC_REGULAR_RANK_3;
   if (HAL_ADC_ConfigChannel(&hadc1, &sConfig) != HAL_OK)
   {
     Error_Handler();
@@ -842,9 +850,9 @@ static void MX_TIM3_Init(void)
 
   /* USER CODE END TIM3_Init 1 */
   htim3.Instance = TIM3;
-  htim3.Init.Prescaler = 2999;
+  htim3.Init.Prescaler = 23999;
   htim3.Init.CounterMode = TIM_COUNTERMODE_UP;
-  htim3.Init.Period = 2399;
+  htim3.Init.Period = 14;
   htim3.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
   htim3.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_DISABLE;
   if (HAL_TIM_Base_Init(&htim3) != HAL_OK)
@@ -1014,13 +1022,10 @@ static void MX_GPIO_Init(void)
   HAL_GPIO_WritePin(LED_GPIO_Port, LED_Pin, GPIO_PIN_SET);
 
   /*Configure GPIO pin Output Level */
-  HAL_GPIO_WritePin(GPIOA, SD_CS_Pin|DE485_Pin|Beeper_Pin, GPIO_PIN_RESET);
+  HAL_GPIO_WritePin(GPIOB, OUT_RCK_Pin|DISPL_STB_Pin|SD_CS_Pin, GPIO_PIN_RESET);
 
   /*Configure GPIO pin Output Level */
-  HAL_GPIO_WritePin(GPIOB, OUT_RCK_Pin|DISPL_STB_Pin, GPIO_PIN_RESET);
-
-  /*Configure GPIO pin Output Level */
-  HAL_GPIO_WritePin(cmdH_05_GPIO_Port, cmdH_05_Pin, GPIO_PIN_SET);
+  HAL_GPIO_WritePin(GPIOA, DE485_Pin|Beeper_Pin, GPIO_PIN_RESET);
 
   /*Configure GPIO pin : LED_Pin */
   GPIO_InitStruct.Pin = LED_Pin;
@@ -1034,13 +1039,6 @@ static void MX_GPIO_Init(void)
   GPIO_InitStruct.Mode = GPIO_MODE_INPUT;
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
-
-  /*Configure GPIO pin : SD_CS_Pin */
-  GPIO_InitStruct.Pin = SD_CS_Pin;
-  GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
-  GPIO_InitStruct.Pull = GPIO_NOPULL;
-  GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
-  HAL_GPIO_Init(SD_CS_GPIO_Port, &GPIO_InitStruct);
 
   /*Configure GPIO pin : OUT_RCK_Pin */
   GPIO_InitStruct.Pin = OUT_RCK_Pin;
@@ -1088,12 +1086,12 @@ static void MX_GPIO_Init(void)
   GPIO_InitStruct.Pull = GPIO_PULLUP;
   HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
 
-  /*Configure GPIO pin : cmdH_05_Pin */
-  GPIO_InitStruct.Pin = cmdH_05_Pin;
+  /*Configure GPIO pin : SD_CS_Pin */
+  GPIO_InitStruct.Pin = SD_CS_Pin;
   GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
   GPIO_InitStruct.Pull = GPIO_PULLUP;
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
-  HAL_GPIO_Init(cmdH_05_GPIO_Port, &GPIO_InitStruct);
+  HAL_GPIO_Init(SD_CS_GPIO_Port, &GPIO_InitStruct);
 
 }
 
