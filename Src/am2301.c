@@ -29,7 +29,7 @@ uint8_t am2301_Start(void){
   return status;//вернём результат. status==0 если линия осталась в низком уровне. Иначе осталось 46 us до низкого уровня.
 }
 //--------------------------------------------------
-uint8_t am2301_Read(struct rampv *ram, uint8_t biasHum){
+uint8_t am2301_Read(struct rampv *ram, int8_t biasHum){
   uint8_t i, j, status=0, crc, tem[5];
   int16_t result;
   static uint8_t err;
@@ -52,10 +52,10 @@ uint8_t am2301_Read(struct rampv *ram, uint8_t biasHum){
     }
     crc=tem[0]+tem[1]+tem[2]+tem[3];
     if(crc==tem[4]){
-      result =((int)tem[0]*256+tem[1])/10; 
+      result =((int)tem[0]*256+tem[1] + biasHum)/10;            // коррекция датчика влажности
       if(ds18b20_amount<3) ram->pvT[2] =(int)tem[2]*256+tem[3]; // DHT21
       if(result > 100) result=100; else if(result < 0) result=0;
-      ram->pvRH = result + biasHum;           // коррекция датчика влажности
+      ram->pvRH = result;
       err = 0;
       status=1;
     }

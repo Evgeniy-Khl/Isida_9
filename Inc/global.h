@@ -72,7 +72,7 @@ extern union Byte portOut;
 //#define HEATER  portOut.bitfield.a0  // НАГРЕВАТЕЛЬ
 //#define HUMIDI	portOut.bitfield.a1  // УВЛАЖНИТЕЛЬ
 //#define FLAP		portOut.bitfield.a2  // Заслонка воздухообмена
-//#define EXT2		portOut.bitfield.a3  // Вспомогательный канал
+//#define EXTRA		portOut.bitfield.a3  // Вспомогательный канал
 //#define TURN		portOut.bitfield.a4  // Поворот лотков
 //#define COOLER	portOut.bitfield.a5  // вентилятор охладителя
 

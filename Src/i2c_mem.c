@@ -21,12 +21,15 @@ void dspl_error(uint8_t status)
   HAL_Delay(5000);
 }
 
-void eep_write(uint16_t memAddr, uint8_t *data){
+void eep_write(uint16_t memAddr, uint8_t *data, uint8_t amount){
 	int16_t writebyte;
-	uint8_t i, amount = EEP_DATA;
+	uint8_t i/*, amount = EEP_DATA*/;
 	uint8_t *begData = data;
 	uint16_t begMemAddr = memAddr;
   EEPSAVE = 0;
+  eepMem.eepAddr = (0x50 << 1);  // HAL expects address to be shifted one bit to the left
+  eepMem.sizeAddr = I2C_MEMADD_SIZE_8BIT;
+  eepMem.pageSize = 16;          // AT24C04A или AT24C08A. The 4K/8K EEPROM is capable of 16-byte page writes
   /* ------------ display ------------------ */
 //  sprintf(writing0, "Start");//"Starting the test - writing to the memory...\r\n"
 //  sprintf(writing1, "writing");
@@ -90,6 +93,9 @@ void eep_write(uint16_t memAddr, uint8_t *data){
 }
 
 uint8_t eep_read(uint16_t memAddr, uint8_t *data){
+  eepMem.eepAddr = (0x50 << 1);  // HAL expects address to be shifted one bit to the left
+  eepMem.sizeAddr = I2C_MEMADD_SIZE_8BIT;
+  eepMem.pageSize = 16;          // AT24C04A или AT24C08A. The 4K/8K EEPROM is capable of 16-byte page writes
 	/* ------------ display ------------------ */
 //	sprintf(writing0, "Start");//"Device is ready, now reading...\r\n"
 //	sprintf(writing1, "reading");
@@ -131,9 +137,9 @@ void eep_initial(uint16_t memAddr, uint8_t *data){
           0,// data[14];    timer[1]  включ.состояниe  = 0 мин. (симетричный режим)
           5,// data[15];    alarm[0]  5 = 0.5 гр.C
           5,// data[16];    alarm[1]  5 = 0.5 гр.C
-          5,// data[17];    extOn[0]  смещение для ВКЛ. вспомогательного канала 1 = 5 -> 0.5 гр.C
+          6,// data[17];    extOn[0]  смещение для ВКЛ. вспомогательного канала 1 = 5 -> 0.5 гр.C
           5,// data[18];    extOn[1]  смещение для ВКЛ. вспомогательного канала 2 = 5 -> 0.5 гр.C
-          2,// data[19];    extOff[0] смещение для ОТКЛ. вспомогательного канала 1 = 2 -> 0.2 гр.C
+          3,// data[19];    extOff[0] смещение для ОТКЛ. вспомогательного канала 1 = 2 -> 0.2 гр.C
           2,// data[20];    extOff[1] смещение для ОТКЛ. вспомогательного канала 2 = 2 -> 0.2 гр.C
          60,// data[21];    air[0]    таймер проветривания пауза; = 60 мин.
           0,// data[22];    air[1]    таймер проветривания air[1]-работа; если air[1]=0-ОТКЛЮЧЕНО
@@ -142,7 +148,7 @@ void eep_initial(uint16_t memAddr, uint8_t *data){
           1,// data[25];    hysteresis Гистерезис канала увлажнения = 1 -> 0.1 гр.C
          20,// data[26];    zonality порог зональности в камере = 20 -> 0.2 гр.C
          80,// data[27];    turnTime время ожидания прохода лотков в секундах = 80 sec.
-        180,// data[28];    timeOut время ожидания начала режима охлаждения = 180 -> 1800 сек.
+         60,// data[28];    timeOut время ожидания начала режима охлаждения = 60(*10) -> 600 сек. = 10 мин.
          25,// data[29];    pkoff[0] пропорциональный коэфф. = 25
          10,// data[30];    pkoff[1] пропорциональный коэфф. = 10
          90,// data[31];    ikoff[0] интегральный коэфф. = 90 -> 900

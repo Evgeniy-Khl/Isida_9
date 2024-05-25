@@ -20,13 +20,13 @@ void init(struct eeprom *t, struct rampv *ram){
   setChar(0,ds18b20_amount); setChar(1,SIMBL_d); setChar(2,0);  // "2d0"
 //  if(ds18b20_amount > 2) checkSensor(); // провер€ем на подключение датчика температуры скорлупы €йца
 
-  if(t->spRH[1]>50){                      // если разрешено ищем HIH-5030 в V humAdc 
+  if(t->hysteresis&0x40){                 // если разрешено ищем HIH-5030 в V humAdc 
     if(humAdc > 500){                     // humAdc => 500 mV дл€ RH=0%
       HIH5030 = 1; setChar(2,1);          // если обнаружен HIH-5030 "2d1"
       PVold1 = PVold2 = humAdc;
     }
   }
-//  else if(t->spRH[0]&0x40) {
+//  else if(t->hysteresis&0x80) {
 //    AM2301 = am2301_Read(ram, t->spRH[0]);
 //    HAL_Delay(1000);
 //    am2301_port_init();

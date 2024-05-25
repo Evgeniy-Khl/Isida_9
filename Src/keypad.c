@@ -4,6 +4,9 @@
 #include "keypad.h"
 #include "proc.h"
 
+extern RTC_HandleTypeDef hrtc;
+extern RTC_TimeTypeDef sTime;
+extern RTC_DateTypeDef sDate;
 extern int8_t countsec, getButton, displmode;
 extern uint8_t ok0, ok1, keyBuffer[], setup, waitset, waitkey, modules, servis;
 extern int16_t alarmErr;
@@ -26,7 +29,8 @@ void pushkey(void){
   SendDataTM1638();  
 }
 */
-void checkkey(struct eeprom *t, int16_t pvT0){
+//void checkkey(struct eeprom *t, int16_t pvT0){
+void checkkey(struct eeprom *t, struct rampv *ram){
   uint8_t xx, keykod;
   ReadKeyTM1638();  
   keykod=0;
@@ -97,7 +101,7 @@ void checkkey(struct eeprom *t, int16_t pvT0){
                 case 21: if(buf<1) buf=1; t->period=buf; break;   // ограничено 1-255 секунд (4 мин.);
                 
                 case 26: if(buf>32) buf=32; else if (buf<-64) buf=-64; t->spRH[0]=buf; break; // подстройка датчика HIH-5030/AM2301
-                case 27: t->hysteresis = buf&3; break;                               // гистерезис
+                case 27: xx = t->hysteresis>>6; t->hysteresis = buf&0x03; t->hysteresis |= xx<<6; break;// гистерезис
                 case 28: buf&=0x3F; if(buf<1) buf=1; t->pkoff[0]=buf; break;         // ограничено 1 - 63;
                 case 29: buf&=0x7F; if(buf<10) buf=10; t->ikoff[0]=buf; break;       // ограничено 10 - 127;
                 case 30: buf&=0x3F; if(buf<1) buf=1; t->pkoff[1]=buf; break;         // ограничено 1 - 63;
@@ -119,7 +123,7 @@ void checkkey(struct eeprom *t, int16_t pvT0){
                  case 21: buf=t->period; break;       // П5 = 60 -> 60 сек. = 1 мин.
                  
                  case 26: buf=t->spRH[0]; break;      // П10 подстройка датчика HIH-4000
-                 case 27: buf=t->hysteresis; break;   // П11 гистерезис канала увлажнения 
+                 case 27: buf=t->hysteresis&3; break; // П11 гистерезис канала увлажнения 
                  case 28: buf=t->pkoff[0]; break;     // П12 = 25
                  case 29: buf=t->ikoff[0]; break;     // П13 = 90
                  case 30: buf=t->pkoff[1]; break;     // П14 = 10
@@ -164,18 +168,18 @@ void checkkey(struct eeprom *t, int16_t pvT0){
                 case 20: if(buf<1) buf=1; t->maxRun=buf; break;   // ограничено 1-255 секунд (4 мин.);
                 case 21: if(buf<1) buf=1; t->period=buf; break;   // ограничено 1-255 секунд (4 мин.);
                 
-                case 26: if(buf>32) buf=32; else if (buf<-64) buf=-64; t->spRH[0]=buf; break; // подстройка датчика HIH-4000
-                case 27: t->hysteresis = buf&3; break;                               // гистерезис ограничено 3
-                case 28: buf&=0x3F; if(buf<1) buf=1; t->pkoff[0]=buf; break;         // ограничено 1 - 63;
+                case 26: if(buf>32) buf=32; else if (buf<-64) buf=-64; t->spRH[0]=buf; break; // подстройка датчика HIH-5030
+                case 27: xx = t->hysteresis>>6; t->hysteresis = buf&0x03; t->hysteresis |= xx<<6; break; // гистерезис ограничено 3
+                case 28: buf&=0x3F; if(buf<1)  buf=1;  t->pkoff[0]=buf; break;       // ограничено 1 - 63;
                 case 29: buf&=0x7F; if(buf<10) buf=10; t->ikoff[0]=buf; break;       // ограничено 10 - 127;
-                case 30: buf&=0x3F; if(buf<1) buf=1; t->pkoff[1]=buf; break;         // ограничено 1 - 63;
+                case 30: buf&=0x3F; if(buf<1)  buf=1;  t->pkoff[1]=buf; break;       // ограничено 1 - 63;
                 case 31: buf&=0x7F; if(buf<10) buf=10; t->ikoff[1]=buf; break;       // ограничено 10 - 127;
                }; 
              } break;
            case KEY_6: setup=0;EEPSAVE = 0;displmode=0;psword=0;buf=0;beeper_ON(DURATION*10); break;
           }; 
        }
-    else if (servis)          // СЕРВИСНЫЙ режим  ----------------------------
+    else if(servis)           //***--- СЕРВИСНЫЙ режим  ---***
        {
         waitset=15;           // удерживаем СЕРВИСНЫЙ режим
         switch (keykod)
@@ -185,32 +189,66 @@ void checkkey(struct eeprom *t, int16_t pvT0){
               buf++; EEPSAVE=1; waitkey=WAITCOUNT;
               switch (servis)
                {
-                 case 7:  t->identif = buf&0x3F; break;      // C7 -> identif (1-63)
-//                 case 8:  t->ForceHeat=buf&0x3F; break;      // C8 -> FORCEHEAT Форсированный нагрев
-                 case 9:  t->turnTime= buf&0x3FF; break;     // C9 -> TURNTIME время ожидания прохода лотков в сек.
-                 case 10: t->waitCooling=(buf&0x3F)*6; break;    // C10-> TIME OUT время ожидания начала режима охлаждения в мин. 30 мин. *6 =180 => 1800 сек.
-//                 case 11:  break; // C11-> разрешено использовать HIH-5030/AM2301
-                 case 12: t->koffCurr= buf&0xFF; break;      // C12-> koffCurr маштабный коэф. по току симистора
-//                 case 13: t->coolOn =  buf&0x7F; break;      // C13-> порог включения вентилятора обдува сисмистора
-//                 case 14: t->coolOff = buf&0x7F; break;      // C14-> порог отключения вентилятора обдува сисмистора
-                 case 15: t->zonality= buf&0x3F; break;      // C15-> порог зональности в камере
+                 case 7:  t->identif = buf&0x3F; break;         // C7 -> identif (1-63)
+                 case 8:  t->zonality= buf&0x3F; break;         // C8-> порог зональности в камере
+                 case 9:  t->turnTime= buf&0x3FF; break;        // C9 -> TURNTIME время ожидания прохода лотков в сек.
+                 case 10: t->waitCooling=(buf&0x3F)*6; break;   // C10-> TIME OUT время ожидания начала режима охлаждения в мин. 10 мин. *6 = 60(*10) -> 600 сек.
+                 case 11: xx = t->hysteresis&3; t->hysteresis = (buf&0x03)<<6; t->hysteresis |= xx; break; // C11-> разрешено использовать HIH-5030/AM2301
+                 case 12: t->koffCurr= buf&0xFF; break;         // C12-> koffCurr маштабный коэф. по току симистора
+                 case 13: HAL_RTC_GetTime(&hrtc, &sTime, RTC_FORMAT_BIN);
+                          sTime.Minutes = buf;
+                          HAL_RTC_SetTime(&hrtc, &sTime, RTC_FORMAT_BIN);
+                  break;                                        // C13-> sTime.Hours
+                 case 14: HAL_RTC_GetTime(&hrtc, &sTime, RTC_FORMAT_BIN);
+                          sTime.Hours = buf;
+                          HAL_RTC_SetTime(&hrtc, &sTime, RTC_FORMAT_BIN);
+                  break;                                        // C14-> sTime.Minutes
+                 case 15: HAL_RTC_GetDate(&hrtc, &sDate, RTC_FORMAT_BIN);
+                          sDate.Date = buf;
+                          HAL_RTC_SetDate(&hrtc, &sDate, RTC_FORMAT_BIN);
+                  break;                                        // C15-> sDate.Date
+                 case 16: HAL_RTC_GetDate(&hrtc, &sDate, RTC_FORMAT_BIN);
+                          sDate.Month = buf;
+                          HAL_RTC_SetDate(&hrtc, &sDate, RTC_FORMAT_BIN);
+                  break;                                        // C15-> sDate.Month
+                 case 17: HAL_RTC_GetDate(&hrtc, &sDate, RTC_FORMAT_BIN);
+                          sDate.Year = buf;
+                          HAL_RTC_SetDate(&hrtc, &sDate, RTC_FORMAT_BIN);
+                  break;                                        // C15-> sDate.Year
+
                }
             } break;
            case KEY_3:
             {
-              ++servis; servis&=0x0F; displmode=0; waitkey=WAITCOUNT; beeper_ON(DURATION);
+              if(++servis>17) servis=7; displmode=0; waitkey=WAITCOUNT; beeper_ON(DURATION);
               switch (servis)
                 {
-                 case 7: buf=t->identif; break;           // C7 -> identif
-//                 case 8: buf=t->ForceHeat; break;         // C8 -> FORCEHEAT
-                 case 9: buf=t->turnTime; break;          // C9 -> TURNTIME время ожидания прохода лотков в сек.
-                 case 10: buf=t->waitCooling/6; break;        // C10-> TIME OUT время ожидания начала режима охлаждения в мин. 180/6 =30 мин.
-//                 case 11:  break; // C11-> разрешено использовать HIH-5030/AM2301
-                 case 12: buf=t->koffCurr; break;         // C12-> koffCurr маштабный коэф. по току симистора
-//                 case 13: buf=t->coolOn; break;           // C13-> порог включения вентилятора обдува сисмистора
-//                 case 14: buf=t->coolOff; break;          // C14-> порог отключения вентилятора обдува сисмистора
-                 case 15: buf=t->zonality; break;         // C15-> порог зональности в камере
-                 default: buf=0;
+                 case 7: buf=t->identif; break;                 // C7 -> identif
+                 case 8: buf=t->zonality; break;                // C8-> порог зональности в камере
+                 case 9: buf=t->turnTime; break;                // C9 -> TURNTIME время ожидания прохода лотков в сек.
+                 case 10: buf=t->waitCooling/6; break;          // C10-> TIME OUT время ожидания начала режима охлаждения в мин. 60(*10)/6 = 10 мин.
+                 case 11: buf=t->hysteresis>>6; break;          // C11-> разрешено использовать HIH-5030/AM2301
+                 case 12: buf=t->koffCurr; break;               // C12-> koffCurr маштабный коэф. по току симистора
+                 case 13: HAL_RTC_GetTime(&hrtc, &sTime, RTC_FORMAT_BIN);
+                          buf = sTime.Minutes;
+                          HAL_RTC_SetTime(&hrtc, &sTime, RTC_FORMAT_BIN);
+                    break;                                      // C13-> sTime.Hours
+                 case 14: HAL_RTC_GetTime(&hrtc, &sTime, RTC_FORMAT_BIN);
+                          buf = sTime.Hours;
+                          HAL_RTC_SetTime(&hrtc, &sTime, RTC_FORMAT_BIN);
+                    break;                                      // C14-> sTime.Minutes
+                 case 15: HAL_RTC_GetDate(&hrtc, &sDate, RTC_FORMAT_BIN);
+                          buf = sDate.Date;
+                          HAL_RTC_SetDate(&hrtc, &sDate, RTC_FORMAT_BIN);
+                    break;                                      // C15-> sDate.Date
+                 case 16: HAL_RTC_GetDate(&hrtc, &sDate, RTC_FORMAT_BIN);
+                          buf = sDate.Month;
+                          HAL_RTC_SetDate(&hrtc, &sDate, RTC_FORMAT_BIN);
+                    break;                                      // C15-> sDate.Month
+                 case 17: HAL_RTC_GetDate(&hrtc, &sDate, RTC_FORMAT_BIN);
+                          buf = sDate.Year;
+                          HAL_RTC_SetDate(&hrtc, &sDate, RTC_FORMAT_BIN);
+                    break;                                      // C15-> sDate.Year
                 }
             } break;
            case KEY_4:
@@ -218,21 +256,39 @@ void checkkey(struct eeprom *t, int16_t pvT0){
               buf--; EEPSAVE=1; waitkey=WAITCOUNT;
               switch (servis)
                {
-                 case 7:  t->identif = buf&0x3F; break;      // C7 -> identif
-//                 case 8:  t->ForceHeat=buf&0x3F; break;      // C8 -> FORCEHEAT Форсированный нагрев
-                 case 9:  t->turnTime= buf&0x3FF; break;     // C9 -> TURNTIME время ожидания прохода лотков в сек.
-                 case 10: t->waitCooling=(buf&0x3F)*6; break;    // C10-> TIME OUT время ожидания начала режима охлаждения в мин. 30 мин. *6 =180 => 1800 сек.
-//                 case 11:  break; // C11-> разрешено использовать HIH-5030/AM2301
-                 case 12: t->koffCurr= buf&0xFF; break;      // C12-> koffCurr маштабный коэф. по току симистора
-//                 case 13: t->coolOn =  buf&0x7F; break;      // C13-> порог включения вентилятора обдува сисмистора
-//                 case 14: t->coolOff = buf&0x7F; break;      // C14-> порог отключения вентилятора обдува сисмистора
-                 case 15: t->zonality= buf&0x3F; break;      // C15-> порог зональности в камере
+                 case 7:  t->identif = buf&0x3F; break;         // C7 -> identif
+                 case 8:  t->zonality= buf&0x3F; break;         // C8-> порог зональности в камере
+                 case 9:  t->turnTime= buf&0x3FF; break;        // C9 -> TURNTIME время ожидания прохода лотков в сек.
+                 case 10: t->waitCooling=(buf&0x3F)*6; break;   // C10-> TIME OUT время ожидания начала режима охлаждения в мин. 10 мин. *6 = 60(*10) сек.
+                 case 11: xx = t->hysteresis&3; t->hysteresis = (buf&0x03)<<6; t->hysteresis |= xx; break; // C11-> разрешено использовать HIH-5030/AM2301
+                 case 12: t->koffCurr= buf&0xFF; break;         // C12-> koffCurr маштабный коэф. по току симистора
+                 case 13: HAL_RTC_GetTime(&hrtc, &sTime, RTC_FORMAT_BIN);
+                          sTime.Minutes = buf; sTime.Seconds = 0;
+                          HAL_RTC_SetTime(&hrtc, &sTime, RTC_FORMAT_BIN);
+                  break;                                        // C13-> sTime.Minutes
+                 case 14: HAL_RTC_GetTime(&hrtc, &sTime, RTC_FORMAT_BIN);
+                          sTime.Hours = buf;
+                          HAL_RTC_SetTime(&hrtc, &sTime, RTC_FORMAT_BIN);
+                  break;                                        // C14-> sTime.Hours
+                 case 15: HAL_RTC_GetDate(&hrtc, &sDate, RTC_FORMAT_BIN);
+                          sDate.Date = buf;
+                          HAL_RTC_SetDate(&hrtc, &sDate, RTC_FORMAT_BIN);
+                  break;                                        // C15-> sDate.Date
+                 case 16: HAL_RTC_GetDate(&hrtc, &sDate, RTC_FORMAT_BIN);
+                          sDate.Month = buf;
+                          HAL_RTC_SetDate(&hrtc, &sDate, RTC_FORMAT_BIN);
+                  break;                                        // C15-> sDate.Month
+                 case 17: HAL_RTC_GetDate(&hrtc, &sDate, RTC_FORMAT_BIN);
+                          sDate.Year = buf;
+                          HAL_RTC_SetDate(&hrtc, &sDate, RTC_FORMAT_BIN);
+                  break;                                        // C15-> sDate.Year
                }
             } break;
+           case KEY_5: servis=0; EEPSAVE = 1; waitset=1; displmode=0; psword=0; buf=0; topUser=TOPUSER; botUser=BOTUSER; t->state &=0xE7; beeper_ON(DURATION*5); break;
            case KEY_6: servis=0; EEPSAVE = 0; displmode=0; psword=0; buf=0; topUser=TOPUSER; botUser=BOTUSER; t->state &=0xE7; beeper_ON(DURATION*10); break;
           }
        }
-    else if(psword==10)       // режим ПАРОЛЬ ВВЕДЕН -------------------------
+    else if(psword==10)       //***--- режим ПАРОЛЬ ВВЕДЕН ---***
        {
         switch (keykod)
           {
@@ -247,17 +303,19 @@ void checkkey(struct eeprom *t, int16_t pvT0){
            case KEY_4_5_6_7: displmode=-10; break;
           }
        }
-    else                      // режим ПО УМОЛЧАНИЮ
+    else                      //***--- режим ПО УМОЛЧАНИЮ ---***
        {
         switch (keykod)
           {
-           case KEY_3:   buf++; psword++; waitset=5; break;
+           case KEY_1:   ram->pvT[1]--; break;     //?????????????????????????????????
+           case KEY_2:   ram->pvT[1]++; break;     //?????????????????????????????????
+           case KEY_3:   buf++; if(++psword>3){psword=0;buf=0;} waitset=5; break;
            case KEY_4:   buf++; buf <<= 1; psword++; waitset=5; break;
-           case KEY_5:   ++displmode; displmode&=3; waitset=20; break;
+           case KEY_5:   ++displmode; displmode&=7; waitset=255; break;//waitset=20;
            case KEY_6:   psword=0; displmode=0; buf=0; t->state &=0xE7; servis=0; waitkey=WAITCOUNT; beeper_ON(DURATION*10); break;// РЕЖИМЫ ОТКЛЮЧЕНЫ
-           case KEY_7:   disableBeep=10; alarmErr = abs(t->spT[0]-pvT0); break;      // тревога отключена на 10 мин.
-           case KEY_8:   disableBeep=10; alarmErr = abs(t->spT[0]-pvT0); break;      // тревога отключена на 10 мин.
-           case KEY_7_8: t->state |=0x08; beeper_ON(DURATION*2); break;          // ГОРИЗОНТ ВКЛЮЧЕН !!
+           case KEY_7:   ram->pvT[0]--; break;     // тревога отключена на 10 мин.
+           case KEY_8:   ram->pvT[0]++; break;     // тревога отключена на 10 мин.
+           case KEY_7_8: t->state |=0x08; beeper_ON(DURATION*2); break;             // ГОРИЗОНТ ВКЛЮЧЕН !!
            case KEY_8_6: if((t->state&7)==1){t->state |=0x02; beeper_ON(DURATION*2);} break; // ВКЛЮЧИТЬ Режим "подгототка к ОХЛАЖДЕНИЮ"
 //           case KEY_7_6: nextTurn=1; rotate_trays(); break;                         // принудительный поворот
           };

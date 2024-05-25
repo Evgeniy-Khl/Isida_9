@@ -41,7 +41,7 @@ void MX_I2C1_Init(void);
 void MX_I2C2_Init(void);
 
 /* USER CODE BEGIN Prototypes */
-void eep_write(uint16_t memAddr, uint8_t *data);
+void eep_write(uint16_t memAddr, uint8_t *data, uint8_t amount);
 uint8_t eep_read(uint16_t memAddr, uint8_t *data);
 void eep_initial(uint16_t memAddr, uint8_t *data);
 uint8_t rtc_check(void);

@@ -15,6 +15,7 @@
   *                        opensource.org/licenses/BSD-3-Clause
   *
   ******************************************************************************
+  Program Size: Code=42440 RO-data=1836 RW-data=208 ZI-data=3760  
   */
 /* USER CODE END Header */
 
@@ -82,15 +83,10 @@ union {
 } un;
 
 extern uint8_t ds18b20_amount, disableBeep, topOwner, topUser, botUser, ok0, ok1, psword, pvAeration;
-extern int16_t buf, valRun;
+extern int16_t buf;
+extern uint16_t valRun;
 extern struct rs485 rs485Data;
 extern struct bluetooth bluetoothData;
-
-extern struct {
-  uint8_t eepAddr;
-  uint8_t sizeAddr;
-  uint8_t pageSize;
-} eepMem;
 
 // -------- ISIDA ------
 uint8_t getButton=0, modules=0, setup, servis, waitset, waitkey=WAITCOUNT;
@@ -102,8 +98,8 @@ ext[2] модуль СО2
 ext[3] модуль заслонок
 */
 int16_t pwTriac0, pwTriac1, pulsPeriod, beepOn, alarmErr; 
-uint16_t currAdc, humAdc, coolerAdc, statPw[2]; 
-uint32_t summCurr=0, summPower=0, UnixTime;
+uint16_t currAdc, humAdc, coolerAdc, pvCurrent, statPw[2]; 
+uint32_t unixTime;
 /* ----------------------------- BEGIN point value -------------------------------------- */
 union pointvalue{
   uint8_t pvdata[20];
@@ -120,9 +116,9 @@ union pointvalue{
     uint8_t fuses;       // 1 байт ind=14 короткие замыкания 
     uint8_t errors;      // 1 байт ind=15 ошибки
     uint8_t warning;     // 1 байт ind=16 предупреждения
-    uint8_t nothing0;    // 1 байт ind=17
-    uint8_t nothing1;    // 1 байт ind=18
-    uint8_t nothing2;    // 1 байт ind=19
+    uint8_t yearMonth;   // 1 байт ind=17 YYMM = 2405
+    uint8_t dayHour;     // 1 байт ind=18 DDHH = 2209
+    uint8_t minSec;      // 1 байт ind=19 MMSS = 0728
   } pv;// ------------------ ИТОГО 20 bytes -------------------------------
 } upv;
 struct rampv *p_rampv = &upv.pv;
@@ -131,7 +127,7 @@ uint8_t *p_ramdata = upv.pvdata;
 union serialdata{
   uint8_t data[EEP_DATA];
   struct eeprom {
-    int16_t spT[2];     // 4 байт ind=0-ind=3   Уставка температуры sp[0].spT->Сухой датчик; sp[1].spT->Влажный датчик
+    int16_t spT[2];     // 4 байт ind=0-ind=3   Уставка температуры spT[0]->Сухой датчик; spT[1]->Влажный датчик
     //spRH[0]->ПОДСТРОЙКА HIH-5030/AM2301 
     //spRH[1]->Уставка влажности Датчик HIH-5030/AM2301 (маска 0111 1111 6,7 бит для разрешения датчика HIH-5030,AM2301);
     int8_t  spRH[2];    // 2 байт ind=4;ind=5
@@ -149,7 +145,7 @@ union serialdata{
     uint8_t air[2];     // 2 байт ind=21;ind=22 таймер проветривания air[0]-пауза; air[1]-работа; если air[1]=0-ОТКЛЮЧЕНО
     uint8_t spCO2;      // 1 байт ind=23;       опорное значение для управления концетрацией СО2
     uint8_t koffCurr;   // 1 байт ind=24;       маштабный коэф. по току симистора  (150 для AC1010)
-    uint8_t hysteresis; // 1 байт ind=25;       гистерезис канала увлажнения
+    uint8_t hysteresis; // 1 байт ind=25;       гистерезис канала увлажнения маска 0x03; разрешение использования HIH-5030 маска 0x40; AM2301 маска 0x80;
     uint8_t zonality;   // 1 байт ind=26;       порог зональности в камере
     uint8_t turnTime;   // 1 байт ind=27;       время ожидания прохода лотков в секундах
     uint8_t waitCooling;// 1 байт ind=28        время ожидания начала режима охлаждения
@@ -157,8 +153,8 @@ union serialdata{
     uint8_t ikoff[2];   // 2 байт ind=31;ind=32 интегральный коэфф.
     uint8_t identif;    // 1 байт ind=33;       сетевой номер прибора
     uint8_t ip[4];      // 4 байт ind=34;ind=35;ind=36;ind=37; IP MQTT broker [192.168.100.100]
-    uint8_t nothing0;   // 1 байт ind=38;       не используется !
-    uint8_t nothing1;   // 1 байт ind=39;       не используется !
+    uint8_t nothing0;   // 1 байт ind=38;       не используется ! YYMM = 2405
+    uint8_t nothing1;   // 1 байт ind=39;       не используется ! DDHH = 2209
   } sp;                 // ------------------ ИТОГО 40 bytes -------------------------------
 } eep;
 struct eeprom *p_eeprom = &eep.sp;
@@ -182,7 +178,8 @@ uint8_t readCO2(struct rampv *ram);
 void saveservis(struct eeprom *t);
 void saveset(struct eeprom *t);
 uint8_t reset(uint16_t memAddr, uint8_t *data);
-void checkkey(struct eeprom *t, int16_t pvT0);
+//void checkkey(struct eeprom *t, int16_t pvT0);
+void checkkey(struct eeprom *t, struct rampv *ram);
 //void pushkey(void);
 void chkdoor(struct eeprom *t, struct rampv *ram);
 void init(struct eeprom *t, struct rampv *ram);
@@ -229,9 +226,7 @@ int main(void)
 
   /* USER CODE BEGIN Init */
   sysTick_Init();   // устанавливает значение SysTick Reload Register (LOAD) для генерации прерывания каждую миллисекунду (1mS)
-  eepMem.eepAddr = (0x50 << 1);  // HAL expects address to be shifted one bit to the left
-  eepMem.sizeAddr = I2C_MEMADD_SIZE_8BIT;
-  eepMem.pageSize = 16;          // AT24C04A или AT24C08A. The 4K/8K EEPROM is capable of 16-byte page writes
+
   portOut.value = 0;
   portFlag.value = 0;
   topOwner=MAXOWNER;
@@ -282,7 +277,7 @@ int main(void)
   HAL_RTC_WaitForSynchro(&hrtc);                      // Після увімкнення, пробудження, скидання, потрібно викликати цю функцію  
   if(HAL_RTCEx_BKUPRead(&hrtc,RTC_BKP_DR1) == 0){     // Перевіряємо чи дата вже була збережена чи ні
    // як ні, то задамо якусь початкову дату і час
-    setDataAndTime(22,RTC_MONTH_OCTOBER,0x01,RTC_WEEKDAY_SATURDAY,0,0,0,RTC_FORMAT_BIN);//2022,RTC_MONTH_OCTOBER,01,RTC_WEEKDAY_SATURDAY  00:00:00
+    setDataAndTime(24,RTC_MONTH_JUNE,0x01,RTC_WEEKDAY_SATURDAY,0,0,0,RTC_FORMAT_BIN);//2024,RTC_MONTH_JUNE,01,RTC_WEEKDAY_SATURDAY  00:00:00
     writeDateToBackup(RTC_BKP_DR1);       // і запишемо до backup регістрів дату
   }
   else {
@@ -312,6 +307,8 @@ int main(void)
 
   init(&eep.sp, &upv.pv);   // инициализация аппаратной части и подключаемых модулей
   temperature_check(&upv.pv);
+  upv.pv.pvT[0] = eep.sp.spT[0]-10;//?????????????????????????????????????????????????????
+  upv.pv.pvT[1] = eep.sp.spT[1]-10;//?????????????????????????????????????????????????????
   un.data[2] = 0x0D; un.data[3] = 0x0A; // "[0x0D]->\r=<CR>; [0x0A]->\n=<LF>"
   /* USER CODE END 2 */
 
@@ -322,18 +319,19 @@ int main(void)
   //----------------------------------- Теперь будем опрашивать три канала на одном АЦП с помощью DMA… -------------------------------------------
 
   /*** ------------------------------------------- BEGIN таймер TIM3 6 Гц. ----------------------------------------------------------------------- ***/
-      if (getButton>waitkey/4) checkkey(&eep.sp, upv.pv.pvT[0]);  // клавиатура waitkey=WAITCOUNT=16 максимальная пауза перед реакцией на кнопку
+      if (getButton>waitkey/4) checkkey(&eep.sp, &upv.pv);  // клавиатура waitkey=WAITCOUNT=16 максимальная пауза перед реакцией на кнопку
 
   /*** ------------------------------------------- BEGIN таймер TIM4 1 Гц. ----------------------------------------------------------------------- ***/
       if(CHECK){   // ------- новая секунда --------------------------------------------------------------
-        CHECK=0; DISPLAY=1; ALARM=0; upv.pv.errors=0;// upv.pv.warning=0;
+        CHECK=0; DISPLAY=1; ALARM=0; upv.pv.errors=0; upv.pv.warning=0;
         HAL_ADC_Start_DMA(&hadc1, (uint32_t*)&adc, 3);
         while(flag==0);
         flag = 0;
         currAdc = adcTomV(adc[0]);      // Channel 8 (Port B0) в мВ.
-//        humAdc  = adcTomV(adc[1]);       
+        humAdc  = adcTomV(adc[1]);      // Channel 9 (Port B1) в мВ.
+//        if(HIH5030) humAdc  = adcTomV(adc[1]);// Channel 9 (Port B1) в мВ.
         coolerAdc = adcTomV(adc[2]/10); // Channel 4 (Port A4) в 1550мВ./10 = 155 единиц
-        if(HIH5030) humAdc  = adcTomV(adc[1]);// Channel 9 (Port B1) в мВ.
+        
         adc[0] = 0; adc[1] = 0; adc[2] = 0;
 
     //-------------------- перевіримо чи настав інший день ------------
@@ -343,7 +341,7 @@ int main(void)
         }
     //-------------------- температура и влажность --------------------
 
-        temperature_check(&upv.pv);
+//        temperature_check(&upv.pv);
         if(AM2301) am2301_Read(&upv.pv, eep.sp.spRH[0]);
         else if(HIH5030){ 
            if(humAdc > 500){                                                // humAdc = 500 mV для RH=0%
@@ -381,7 +379,7 @@ int main(void)
           else if((upv.pv.warning&0x20)==0){    // НЕТ ОСТАНОВА тихоходного вентилятора !!!
             if(upv.pv.pvT[0] < 850){
               int16_t err = eep.sp.spT[0] - upv.pv.pvT[0];
-              if(heatCondition(err, eep.sp.alarm[0], eep.sp.extOn[0])) upv.pv.warning |= 0x01;  // ОТКЛОНЕНИЕ по температуре
+              if(heatCondition(err, eep.sp.alarm[0])) upv.pv.warning |= 0x01;  // ОТКЛОНЕНИЕ по температуре
               pwTriac0 = heater(err, &eep.sp);
               if(pwTriac0) {HEATER = 1; /*set_Pulse(250);*/}  // HEATER On  32 mks
             }
@@ -394,7 +392,7 @@ int main(void)
           if(ok0&1){  // отключение УВЛАЖНЕНИЯ при РАЗОГРЕВЕ и ПЕРЕОХЛАЖДЕНИИ
             if(HIH5030||AM2301){  // подключен электронный датчик влажности
               int16_t err = eep.sp.spRH[1] - upv.pv.pvRH;
-              if(humCondition(err, eep.sp.alarm[1], eep.sp.extOn[1])) upv.pv.warning |= 0x02; // ОТКЛОНЕНИЕ по влажности
+              if(humCondition(err, eep.sp.alarm[1])) upv.pv.warning |= 0x02; // ОТКЛОНЕНИЕ по влажности
               // релейный режим работы  0-НЕТ; 1->по кан.[0] 2->по кан.[1] 3->по кан.[0]&[1] 4->по кан.[1] импульсный режим
               if(eep.sp.relayMode==4) valRun = humidifier(err, &eep.sp);
               else {
@@ -404,7 +402,7 @@ int main(void)
             }
             else if(upv.pv.pvT[1] < 850){
               int16_t err = eep.sp.spT[1] - upv.pv.pvT[1];
-              if(humCondition(err, eep.sp.alarm[1], eep.sp.extOn[1])) upv.pv.warning |= 0x02; // ОТКЛОНЕНИЕ по влажности
+              if(humCondition(err, eep.sp.alarm[1])) upv.pv.warning |= 0x02; // ОТКЛОНЕНИЕ по влажности
               // релейный режим работы  0-НЕТ; 1->по кан.[0] 2->по кан.[1] 3->по кан.[0]&[1] 4->по кан.[1] импульсный режим
               if(eep.sp.relayMode==4) valRun = humidifier(err, &eep.sp);
               else {
@@ -421,8 +419,8 @@ int main(void)
           if(upv.pv.warning&0x20) tmpbyte = ON;     // ОСТАНОВ тихоходного вентилятора
           else {
             if(upv.pv.pvT[0] < 850){
-              int16_t err = eep.sp.spT[0] - upv.pv.pvT[0];
-              tmpbyte = RelayNeg(err, 0, eep.sp.extOn[0],eep.sp.extOff[0]);// доп. канал -> охлаждение
+              int16_t err = upv.pv.pvT[0] - eep.sp.spT[0];
+              if(err>=eep.sp.extOff[0]) tmpbyte = ON; else if(err<=0) tmpbyte = OFF; // при err >=0.2грд. -> ON; при err <=0грд. -> OFF;
             }
             else upv.pv.errors |= 0x01;             // ОШИБКА ДАТЧИКА температуры !!!
           }
@@ -431,50 +429,49 @@ int main(void)
             case ON:  FLAP = ON;  upv.pv.flap = FLAPOPEN;  if(modules&8) chkflap(SETFLAP,  &upv.pv.flap); break;// установка заслонки
             case OFF: FLAP = OFF; upv.pv.flap = FLAPCLOSE; if(modules&8) chkflap(DATAREAD, &upv.pv.flap); break;// установка заслонки; сброс флага запрещения принудительной подачи воды
           }
-      // ---------------------- ВСПОМОГАТЕЛЬНЫЙ ----------------------------
-          extra_2(&eep.sp, &upv.pv);
       //----------------------- ЗОНАЛЬНОСТЬ температуры камеры -------------
-            if(ok0){
-                if(HIH5030||AM2301) {if(ds18b20_amount>1) {if(abs(upv.pv.pvT[0]-upv.pv.pvT[1])>eep.sp.zonality) upv.pv.warning |=0x08;}} // Большой перепад температур.
-                else     {if(ds18b20_amount>2) {if(abs(upv.pv.pvT[0]-upv.pv.pvT[2])>eep.sp.zonality) upv.pv.warning |=0x08;}};// Большой перепад температур.
+          if(ok0){
+              if(HIH5030||AM2301) {if(ds18b20_amount>1) {if(abs(upv.pv.pvT[0]-upv.pv.pvT[1])>eep.sp.zonality) upv.pv.warning |=0x08;}} // Большой перепад температур.
+              else     {if(ds18b20_amount>2) {if(abs(upv.pv.pvT[0]-upv.pv.pvT[2])>eep.sp.zonality) upv.pv.warning |=0x08;}};// Большой перепад температур.
+          }
+          if(!(HIH5030||AM2301) && (upv.pv.pvT[1]-upv.pv.pvT[0])>20){
+            if(upv.pv.pvT[1] < 850){
+              upv.pv.warning =0x10; 					// Неправильная конфигурация датчиков !!
+              pwTriac0 = 50;
             }
-            if(!(HIH5030||AM2301) && (upv.pv.pvT[1]-upv.pv.pvT[0])>20){
-              if(upv.pv.pvT[1] < 850){
-                upv.pv.warning =0x10; 					// Неправильная конфигурация датчиков !!
-                pwTriac0 = 50;
-              }
-              else upv.pv.errors |= 0x02;   // ОШИБКА ДАТЧИКА влажности !!!
-            }
+            else upv.pv.errors |= 0x02;   // ОШИБКА ДАТЧИКА влажности !!!
+          }
       //----------------------- ПОВОРОТ ЛОТКОВ Статистика камеры -----------
-            if(eep.sp.koffCurr){
-            // конверсия mV в mA ->100mV/1A+1.65V. (5A->0.5+1.65=2.15; 10A->2.65; 20A->3.65) добавляем делитель 110k/68k на 2,65 и получаем 10А = 1В = 1000 мВ
-              currAdc *= eep.sp.koffCurr; currAdc /= 100;
-              summCurr += currAdc;                                        // суммирование тока симистора каждую секунду
-              if(upv.pv.power==100 && countsec>=0 && currAdc<100) upv.pv.errors|=0x08;  // если ток < 1,0 А. -> НЕИСПРАВНА цепь НАГРЕВАТЕЛЯ 
-            }
-            else {currAdc = 0; summCurr = 0;}
-            // АНАЛИЗ УХУДШЕНИЯ АВАРИЙНОЙ СИТУАЦИИ (важно в этом месте после анализа мощности)
-            int16_t newErr = abs(eep.sp.spT[0]-upv.pv.pvT[0]);
-            if((upv.pv.warning & 3)&&(newErr-alarmErr)>2) disableBeep=0;  // если при блокироке сирены продолжает увеличиватся ошибка сброс блокировки
-            if(countsec>59){
-              ++countmin; countsec=0; if (disableBeep) disableBeep--;
-              if(cardOk) SD_write(fileName, p_eeprom, p_rampv); else My_LinkDriver();  // запись на SD если КАМЕРА ВКЛЮЧЕНА в работу
-              if(!(eep.sp.state&0x18)) rotate_trays(eep.sp.timer[0], eep.sp.timer[1], &upv.pv);  // выполняется только если Камера ВКЛ.
-              if(upv.pv.pvCO2>0) CO2_check(eep.sp.spCO2, eep.sp.spCO2, upv.pv.pvCO2); // Проверка концентрации СО2
-              else if(eep.sp.air[1]>0) aeration_check(eep.sp.air[0], eep.sp.air[1]);    // Проветривание выполняется только если air[1]>0
-              statPw[0]/=60; statPw[1]/=60;     // расчет затрат ресурсов
+          if(eep.sp.koffCurr){
+          // конверсия mV в mA ->100mV/1A+1.65V. (5A->0.5+1.65=2.15; 10A->2.65; 20A->3.65) добавляем делитель 110k/68k на 2,65 и получаем 10А = 1В = 1000 мВ
+            pvCurrent = currAdc/10 * eep.sp.koffCurr; pvCurrent /= 100;
+            if(upv.pv.power==100 && countsec>=0 && currAdc<100) upv.pv.errors|=0x08;  // если ток < 1,0 А. -> НЕИСПРАВНА цепь НАГРЕВАТЕЛЯ 
+          }
+          else currAdc = 0;
+          // АНАЛИЗ УХУДШЕНИЯ АВАРИЙНОЙ СИТУАЦИИ (важно в этом месте после анализа мощности)
+          int16_t newErr = abs(eep.sp.spT[0]-upv.pv.pvT[0]);
+          if((upv.pv.warning & 3)&&(newErr-alarmErr)>2) disableBeep=0;  // если при блокироке сирены продолжает увеличиватся ошибка сброс блокировки
+          if(countsec>59){
+            ++countmin; countsec=0; if (disableBeep) disableBeep--;
+            if(cardOk) SD_write(fileName, p_eeprom, p_rampv); else My_LinkDriver();  // запись на SD если КАМЕРА ВКЛЮЧЕНА в работу
+            if(!(eep.sp.state&0x18)) rotate_trays(eep.sp.timer[0], eep.sp.timer[1], &upv.pv);  // выполняется только если Камера ВКЛ.
+            if(upv.pv.pvCO2>0) CO2_check(eep.sp.spCO2, eep.sp.spCO2, upv.pv.pvCO2); // Проверка концентрации СО2
+            else if(eep.sp.air[1]>0) aeration_check(eep.sp.air[0], eep.sp.air[1]);    // Проветривание выполняется только если air[1]>0
+            statPw[0]/=60; statPw[1]/=60;     // расчет затрат ресурсов
 //              upv.pv.cost0=statF2(0, statPw[0]); upv.pv.cost1=statF2(1, statPw[1]); // расчет затрат ресурсов
-              statPw[0]=0; statPw[1]=0;         // расчет затрат ресурсов
-              summCurr *= 22; summCurr /= 6;    // summCurr*220V./60 sec.
-              summPower += summCurr/60;         // суммируем в мВт.
-              summCurr = 0;
-              if(countmin>59){
-                countmin = 0; /*upv.pv.date = sDate.Date; upv.pv.hours = sTime.Hours;*/
+            statPw[0]=0; statPw[1]=0;         // расчет затрат ресурсов
+            if(countmin>59){
+              countmin = 0; /*upv.pv.date = sDate.Date; upv.pv.hours = sTime.Hours;*/
 //                eep.sp.EnergyMeter += (summPower/100);// суммируем в Вт.
-                summPower = 0;
-                EEPSAVE=1; waitset=1;
-              }
-            } 
+              EEPSAVE=1; waitset=1;
+            }
+          }
+      // ---------------------- ВСПОМОГАТЕЛЬНЫЙ ----------------------------
+          tmpbyte = extra_2(&eep.sp, &upv.pv);
+          switch (tmpbyte){
+              case ON:  EXTRA = ON;  break;
+              case OFF: EXTRA = OFF; break;
+          }
         }
     //--------------------- КАМЕРА ОТКЛЮЧЕНА ---------------------------
         else if((eep.sp.state&7)==0){
@@ -503,12 +500,13 @@ int main(void)
     //--------------------- если нужно сохраняем установки -------------
         if(waitset){
           if(--waitset==0){
-            if(EEPSAVE) eep_write(0x0000, eep.data);                                      // запись в энергонезависимую память
+            if(EEPSAVE) eep_write(0x0000, eep.data, EEP_DATA);                            // запись в энергонезависимую память
             if(servis==7){upv.pv.node = eep.sp.identif; bluetoothName(eep.sp.identif);}   // коррекция Broadcast name 
             servis=0;setup=0;displmode=0;psword=0;buf=0;topUser=TOPUSER;botUser=BOTUSER;} // возвращяемся к основному экрану, сброс пароля 
         }
         if(TURN && eep.sp.timer[1]){if(--upv.pv.nextTurn==0) { upv.pv.nextTurn=eep.sp.timer[0]; TURN = OFF;}} // только при sp[1].timer>0 -> асиметричный режим
-    
+        
+          unixTime = timestamp(); //  персчет в unixTime
     // -------------------- Bluetooth ----------------------------------
         if(HAL_GPIO_ReadPin(Bluetooth_STATE_GPIO_Port, Bluetooth_STATE_Pin)){ // если есть подключение по Bluetooth
           un.crc = 0;
@@ -533,7 +531,7 @@ int main(void)
         if(setup) display_setup(&eep.sp);
         else if(servis) display_servis(&upv.pv);
         else display(&eep.sp, &upv.pv);
-        ledOut(eep.sp.state, upv.pv.warning, upv.pv.fuses); SendDataTM1638(); set_Output(); // запись в микросхему 74HC595D
+        ledOut(eep.sp.state, upv.pv.warning, upv.pv.fuses, eep.sp.programm); SendDataTM1638(); set_Output(); // запись в микросхемы TM1638 и 74HC595D
       }
   /*** ======================================================================================================================================== ***/
     /* USER CODE END WHILE */
@@ -548,7 +546,8 @@ int main(void)
           if(pwTriac1 && (upv.pv.fuses&0x01)==0) {pwTriac1=valRun; HUMIDI = 1; LEDOFF = 1;}  // HUMIDIFIER On
         }
       }
-      if(LEDOFF) {LEDOFF = 0; ledOut(eep.sp.state, upv.pv.warning, upv.pv.fuses); SendDataTM1638(); set_Output();}  // запись в микросхему 74HC595D
+      // LEDOFF = 1 для быстрого отключения светодиодов pwTriac0, pwTriac1
+      if(LEDOFF) {LEDOFF = 0; ledOut(eep.sp.state, upv.pv.warning, upv.pv.fuses, eep.sp.programm); SendDataTM1638(); set_Output();}  // запись в микросхемы TM1638 и 74HC595D
       if(beepOn < 0) {beepOn=0; HAL_GPIO_WritePin(Beeper_GPIO_Port, Beeper_Pin, GPIO_PIN_RESET);}  // Beeper Off
   /* ------------------------------------------------------------------------------------------------------------------ */
       if(bluetoothData.ind == 0){
@@ -596,11 +595,11 @@ void SystemClock_Config(void)
 
   /** Initializes the CPU, AHB and APB busses clocks 
   */
-  RCC_OscInitStruct.OscillatorType = RCC_OSCILLATORTYPE_LSI|RCC_OSCILLATORTYPE_HSE;
+  RCC_OscInitStruct.OscillatorType = RCC_OSCILLATORTYPE_HSE|RCC_OSCILLATORTYPE_LSE;
   RCC_OscInitStruct.HSEState = RCC_HSE_ON;
   RCC_OscInitStruct.HSEPredivValue = RCC_HSE_PREDIV_DIV1;
+  RCC_OscInitStruct.LSEState = RCC_LSE_ON;
   RCC_OscInitStruct.HSIState = RCC_HSI_ON;
-  RCC_OscInitStruct.LSIState = RCC_LSI_ON;
   RCC_OscInitStruct.PLL.PLLState = RCC_PLL_ON;
   RCC_OscInitStruct.PLL.PLLSource = RCC_PLLSOURCE_HSE;
   RCC_OscInitStruct.PLL.PLLMUL = RCC_PLL_MUL9;
@@ -622,7 +621,7 @@ void SystemClock_Config(void)
     Error_Handler();
   }
   PeriphClkInit.PeriphClockSelection = RCC_PERIPHCLK_RTC|RCC_PERIPHCLK_ADC;
-  PeriphClkInit.RTCClockSelection = RCC_RTCCLKSOURCE_LSI;
+  PeriphClkInit.RTCClockSelection = RCC_RTCCLKSOURCE_LSE;
   PeriphClkInit.AdcClockSelection = RCC_ADCPCLK2_DIV6;
   if (HAL_RCCEx_PeriphCLKConfig(&PeriphClkInit) != HAL_OK)
   {

@@ -7,7 +7,7 @@
 extern char USERPath[]; /* logical drive path */
 extern char fileName[];
 extern uint8_t cardOk;
-extern uint32_t UnixTime;
+extern uint32_t unixTime;
 
 FATFS SDFatFs;
 DWORD fre_clust, fre_sect, tot_sect;
@@ -62,8 +62,8 @@ uint8_t SD_write(const char* flname, struct eeprom *t, struct rampv *ram){
       uint32_t f_size = MyFile.fsize;
       item = f_lseek(&MyFile, f_size);
       if (item==FR_OK){ // »щем конц файла
-        UnixTime = timestamp(); //  персчет в UnixTime
-        sprintf(buffile,"%u; %2x;%5.1f;%4.1f;%5.1f;%4.1f;",UnixTime,t->state,(float)ram->pvT[0]/10,(float)t->spT[0]/10,(float)ram->pvT[1]/10,(float)t->spT[1]/10);
+        unixTime = timestamp(); //  персчет в unixTime
+        sprintf(buffile,"%u; %2x;%5.1f;%4.1f;%5.1f;%4.1f;",unixTime,t->state,(float)ram->pvT[0]/10,(float)t->spT[0]/10,(float)ram->pvT[1]/10,(float)t->spT[1]/10);
         if(ram->pvRH<=100) sprintf(txt,"%5u%%;%5u%%;",ram->pvRH,t->spRH[1]);
         else sprintf(txt," --.-;--.-;");
         strcat(buffile,txt);

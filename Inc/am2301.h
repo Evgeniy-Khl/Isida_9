@@ -10,6 +10,6 @@
 //--------------------------------------------------
 void am2301_port_init(void);
 uint8_t am2301_Start(void);
-uint8_t am2301_Read(struct rampv *ram, uint8_t biasHum);
+uint8_t am2301_Read(struct rampv *ram, int8_t biasHum);
 
 #endif /* __AM2301_H */

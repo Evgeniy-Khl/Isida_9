@@ -66,7 +66,7 @@ uint8_t sethorizon(uint8_t timer0, uint8_t turnTime, struct rampv *ram){ // уста
 uint16_t adcTomV(uint16_t curr){
   float res;
   if(curr < 125) curr = 0;                          // меньще 100 mV
-  else {res = curr * VREF / 4096; curr = res*1000;} // в mV диапазон от 100 mV до 3300 mV
+  else {res = curr * VREF / 4096; curr = res*1000;} // в mV диапазон от 100 mV до 3300 mV (VREF = 3.3f;)
   return curr;
 }
 
@@ -87,7 +87,7 @@ void chkdoor(struct eeprom *t, struct rampv *ram){
      ram->fuses &= 0x7F;  // —осто€ние дверей
      if(t->state&4){      //-- если "подгототка к ¬ Ћё„≈Ќ»ё" то включить камеру --
         t->state &=0xFB; t->state |=0x01; counter = 0; countsec=-5; ok0=0; ok1=0; ram->flap=FLAPCLOSE; if(modules&8) chkflap(DATAREAD, &ram->flap);
-        if (t->extendMode==1) EXT2 = OFF; // доп. канал (extendMode==1->¬≈Ќ“»Ћя÷»я)
+        if(t->extendMode==1) EXTRA = OFF; // доп. канал (extendMode==1->¬≈Ќ“»Ћя÷»я)
       }
      else if((t->state&3)==3) {beeper_ON(DURATION/2); if(++counter>300) {t->state &= 0xF9; counter = 0;}}//-- если превышено ожидание то снимаем "подгототка к ќ“ Ћё„≈Ќ»ё"
    }
@@ -96,7 +96,7 @@ void chkdoor(struct eeprom *t, struct rampv *ram){
      if((t->state&7)==3)  //-- если "подгототка к ќ“ Ћё„≈Ќ»ё" то отключить камеру --
       {
        t->state &=0xFC; t->state |=0x04; counter = 0; ram->power=0; HUMIDI = OFF; FLAP = ON; ram->flap=FLAPOPEN; if(modules&8) chkflap(SETFLAP, &ram->flap);
-       if (t->extendMode==1) EXT2 = ON; // доп. канал (extendMode==1->¬≈Ќ“»Ћя÷»я)
+       if(t->extendMode==1) EXTRA = ON; // доп. канал (extendMode==1->¬≈Ќ“»Ћя÷»я)
       }
      else if((t->state&7)==1) beeper_ON(DURATION*5);//-- если камера ¬ Ћ. то вкл. тревогу.
      else if(t->state&4) {if(++counter>t->waitCooling*10) {beeper_ON(DURATION); ALARM = 1;}}//-- если превышено ожидание то вкл. тревогу.(–ежим "подгототка к ¬ Ћё„≈Ќ»ё")

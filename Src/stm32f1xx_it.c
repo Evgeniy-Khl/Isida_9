@@ -196,12 +196,8 @@ void PendSV_Handler(void)
 void SysTick_Handler(void)
 {
   /* USER CODE BEGIN SysTick_IRQn 0 */
-//  pwTriac0--;
-  pwTriac1--;
-  pulsPeriod--;
   beepOn--;
   bluetoothData.timeOut++;
-
   /* USER CODE END SysTick_IRQn 0 */
   HAL_IncTick();
   /* USER CODE BEGIN SysTick_IRQn 1 */
@@ -257,6 +253,7 @@ void TIM3_IRQHandler(void)
   rs485Data.timeOut++;
   ++getButton;
   pwTriac0--;
+  pwTriac1--;
 //  if(--pwTriac0 <= 0) {pwTriac0=0; HEATER = 0; LEDOFF = 1;}  // HEATER Off
   /* USER CODE END TIM3_IRQn 1 */
 }
@@ -273,6 +270,7 @@ void TIM4_IRQHandler(void)
   /* USER CODE BEGIN TIM4_IRQn 1 */
   CHECK = 1;
   countsec++;
+  pulsPeriod--;
   /* USER CODE END TIM4_IRQn 1 */
 }
 

@@ -124,7 +124,7 @@ void rs485Callback(uint8_t *p_ramdata, uint8_t *p_eepdata){
            intVal.val = *(p_ramdata+9);   // pvCO2[3]
            for (i=0; i<2; i++){rs485Data.TXBuffer[item] = intVal.data[i]; item++;}    // item: 79-80
            for (i=0; i<4; i++){rs485Data.TXBuffer[item] = 0; item++;}                 // item: 81-84 нулевые байты ( 4 байт)
-           rs485Data.TXBuffer[item] = portOut.value; item++;             // item: 85   перадача состояния иполнительного оборудования
+           rs485Data.TXBuffer[item] = (portOut.value<<2); item++;             // item: 85   перадача состояния иполнительного оборудования
            for (i=0; i<8; i++){rs485Data.TXBuffer[item] = 0; item++;}    // item: 86-93 нулевые байты ( 8 байт)
            
            word=0;
@@ -153,7 +153,7 @@ void rs485Callback(uint8_t *p_ramdata, uint8_t *p_eepdata){
             p_ind = p_eepdata+6; // указатель на state состояние камеры (ОТКЛ. ВКЛ. ОХЛАЖДЕНИЕ, и т.д.)
             for (i=5; i<9; i++) *p_ind++ = rs485Data.RXBuffer[i];  // state; extendMode; relayMode; programm.  (4 byte)
             
-            eep_write(0x0000, p_eepdata);
+            eep_write(0x0000, p_eepdata, EEP_DATA);
           }; break;
         case COMMAND_SP_WRITE:
           {
@@ -191,7 +191,7 @@ void rs485Callback(uint8_t *p_ramdata, uint8_t *p_eepdata){
               }
             }
             
-            eep_write(0x0000, p_eepdata);
+            eep_write(0x0000, p_eepdata, EEP_DATA);
           }; break;
         case COMMAND_KOF_WRITE:
           {
@@ -221,7 +221,7 @@ void rs485Callback(uint8_t *p_ramdata, uint8_t *p_eepdata){
             p_ind = p_eepdata+32; // указатель на eep->ikoff[1]=900
             *p_ind =  intVal.val/10; //  ikoff[1]
             
-            eep_write(0x0000, p_eepdata);
+            eep_write(0x0000, p_eepdata, EEP_DATA);
           }; break;
         case COMMAND_PUMP_WRITE:
           {
@@ -251,7 +251,7 @@ void rs485Callback(uint8_t *p_ramdata, uint8_t *p_eepdata){
             p_ind = p_eepdata+12; // указатель на eep->period
             *p_ind =  intVal.val/200; // period=15
             
-            eep_write(0x0000, p_eepdata);
+            eep_write(0x0000, p_eepdata, EEP_DATA);
           }; break;
         case COMMAND_FLP_WRITE:
           {
