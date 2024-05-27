@@ -96,8 +96,12 @@ void HardFault_Handler(void)
 //  sprintf(writing0, "Hard");//"Starting the test - writing to the memory...\r\n"
 //	sprintf(writing1, "Fault");
 //	mem_display(1000, (char*)writing0, (char*)writing1);
-  for(uint8_t i=0;i<8;i++) {setChar(i,SIMBL_E); PointOn(i);}  // only decimal points is on
+  for(uint8_t i=0;i<8;i++) {setChar(i,SIMBL_BL); PointOff(i);}  // clear
+  setChar(0,SIMBL_E); setChar(1,9);  setChar(2,9);  // "E99"
   SendDataTM1638();
+  HAL_Delay(2000);
+  // Выполняем "мягкое" аппаратное перезапуска микроконтроллера
+  NVIC_SystemReset();
   /* USER CODE END HardFault_IRQn 0 */
   while (1)
   {

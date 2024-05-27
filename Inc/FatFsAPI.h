@@ -7,7 +7,7 @@
 
 #define LEN_BUFF  70
 //--- _FS_NORTC	1  â "ffconf.h"
-uint8_t My_LinkDriver(void);
+uint8_t My_LinkDriver(const char* ext);
 
 #endif // __FATFSAPI_H__
 

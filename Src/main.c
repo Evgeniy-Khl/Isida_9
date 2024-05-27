@@ -14,8 +14,8 @@
   * License. You may obtain a copy of the License at:
   *                        opensource.org/licenses/BSD-3-Clause
   *
-  ******************************************************************************
-  Program Size: Code=42440 RO-data=1836 RW-data=208 ZI-data=3760  
+  ****************************************************************************** 
+  Program Size: Code=43332 RO-data=1844 RW-data=216 ZI-data=3656  
   */
 /* USER CODE END Header */
 
@@ -73,14 +73,11 @@ RTC_TimeTypeDef sTime;
 RTC_DateTypeDef sDate;
 volatile uint16_t adc[3] = {0,0,0};    // у нас три канала АЦП, поэтому массив из двух элементов
 volatile uint8_t flag = 0;             // флаг окончания преобразования АЦП
-char fileName[15]={0};
+char fileName[9]={0};
 union Byte portOut;
 union Byte portFlag;
-
-union {
-  uint8_t data[4];  
-  uint16_t crc; 
-} un;
+union d4v crc;
+union d4v file;
 
 extern uint8_t ds18b20_amount, disableBeep, topOwner, topUser, botUser, ok0, ok1, psword, pvAeration;
 extern int16_t buf;
@@ -287,7 +284,7 @@ int main(void)
   HAL_RTCEx_SetSecond_IT(&hrtc);          // Sets Interrupt for second
   HAL_RTC_GetTime(&hrtc, &sTime, RTC_FORMAT_BIN);
   HAL_RTC_GetDate(&hrtc, &sDate, RTC_FORMAT_BIN);
-  sprintf(fileName,"%02u_%02u_%02u.txt",sDate.Year,sDate.Month,sDate.Date);
+  sprintf(fileName,"%02u_%02u_%02u",sDate.Year,sDate.Month,sDate.Date);
   //******************************************************************************
   for(int8_t i=0;i<8;i++) {setChar(i,SIMBL_BL); PointOn(i); LedOn(i,3);}// "BL"+точки
   SendDataTM1638();
@@ -309,7 +306,7 @@ int main(void)
   temperature_check(&upv.pv);
   upv.pv.pvT[0] = eep.sp.spT[0]-10;//?????????????????????????????????????????????????????
   upv.pv.pvT[1] = eep.sp.spT[1]-10;//?????????????????????????????????????????????????????
-  un.data[2] = 0x0D; un.data[3] = 0x0A; // "[0x0D]->\r=<CR>; [0x0A]->\n=<LF>"
+  crc.data[2] = 0x0D; crc.data[3] = 0x0A; // "[0x0D]->\r=<CR>; [0x0A]->\n=<LF>"
   /* USER CODE END 2 */
 
   /* Infinite loop */
@@ -337,7 +334,7 @@ int main(void)
     //-------------------- перевіримо чи настав інший день ------------
         if (((sTime.Hours+sTime.Minutes+sTime.Seconds)<=4)){
           writeDateToBackup(RTC_BKP_DR1);             // сохраним обновленную дату
-          sprintf(fileName,"%02u_%02u_%02u.txt",sDate.Year,sDate.Month,sDate.Date);
+          sprintf(fileName,"%02u_%02u_%02u",sDate.Year,sDate.Month,sDate.Date);
         }
     //-------------------- температура и влажность --------------------
 
@@ -453,17 +450,19 @@ int main(void)
           if((upv.pv.warning & 3)&&(newErr-alarmErr)>2) disableBeep=0;  // если при блокироке сирены продолжает увеличиватся ошибка сброс блокировки
           if(countsec>59){
             ++countmin; countsec=0; if (disableBeep) disableBeep--;
-            if(cardOk) SD_write(fileName, p_eeprom, p_rampv); else My_LinkDriver();  // запись на SD если КАМЕРА ВКЛЮЧЕНА в работу
-            if(!(eep.sp.state&0x18)) rotate_trays(eep.sp.timer[0], eep.sp.timer[1], &upv.pv);  // выполняется только если Камера ВКЛ.
-            if(upv.pv.pvCO2>0) CO2_check(eep.sp.spCO2, eep.sp.spCO2, upv.pv.pvCO2); // Проверка концентрации СО2
-            else if(eep.sp.air[1]>0) aeration_check(eep.sp.air[0], eep.sp.air[1]);    // Проветривание выполняется только если air[1]>0
+            
+            if(cardOk) My_LinkDriver(".txt");  // запись на SD если КАМЕРА ВКЛЮЧЕНА в работу
+            
+            if(!(eep.sp.state&0x18)) rotate_trays(eep.sp.timer[0], eep.sp.timer[1], &upv.pv);   // выполняется только если Камера ВКЛ.
+            if(upv.pv.pvCO2>0) CO2_check(eep.sp.spCO2, eep.sp.spCO2, upv.pv.pvCO2);             // Проверка концентрации СО2
+            else if(eep.sp.air[1]>0) aeration_check(eep.sp.air[0], eep.sp.air[1]);              // Проветривание выполняется только если air[1]>0
             statPw[0]/=60; statPw[1]/=60;     // расчет затрат ресурсов
 //              upv.pv.cost0=statF2(0, statPw[0]); upv.pv.cost1=statF2(1, statPw[1]); // расчет затрат ресурсов
             statPw[0]=0; statPw[1]=0;         // расчет затрат ресурсов
             if(countmin>59){
               countmin = 0; /*upv.pv.date = sDate.Date; upv.pv.hours = sTime.Hours;*/
 //                eep.sp.EnergyMeter += (summPower/100);// суммируем в Вт.
-              EEPSAVE=1; waitset=1;
+//              EEPSAVE=1; waitset=1;
             }
           }
       // ---------------------- ВСПОМОГАТЕЛЬНЫЙ ----------------------------
@@ -492,7 +491,7 @@ int main(void)
                if(currAdc>1000){upv.pv.errors|=0x04;}   // если сила тока > 1000 mV ПРОБОЙ СИМИСТОРА!
                if(countsec>59){
                 countsec=0;
-                if(cardOk) SD_write(fileName, p_eeprom, p_rampv); else My_LinkDriver();  // ????????????????????????????????????????????
+//                if(cardOk) SD_write(fileName, p_eeprom, p_rampv); else My_LinkDriver();  // ????????????????????????????????????????????
                 if(eep.sp.state&0x80) rotate_trays(eep.sp.timer[0], eep.sp.timer[1], &upv.pv); // Поворот лотков при ОТКЛЮЧЕННОЙ камере
                }
             }
@@ -500,7 +499,17 @@ int main(void)
     //--------------------- если нужно сохраняем установки -------------
         if(waitset){
           if(--waitset==0){
-            if(EEPSAVE) eep_write(0x0000, eep.data, EEP_DATA);                            // запись в энергонезависимую память
+            if(EEPSAVE){
+              eep_write(0x0000, eep.data, EEP_DATA);                            // запись в энергонезависимую память
+              if(file.data[0]){
+                if(file.data[0]==2){
+                  sprintf(fileName,"%02u_%02u_%02u",sDate.Year,sDate.Month,sDate.Date);
+                  writeDateToBackup(RTC_BKP_DR1);       // і запишемо до backup регістрів дату
+                }
+                if(cardOk) My_LinkDriver(".eep");  // запись на SD
+                file.data[0] = 0;
+              }
+            }
             if(servis==7){upv.pv.node = eep.sp.identif; bluetoothName(eep.sp.identif);}   // коррекция Broadcast name 
             servis=0;setup=0;displmode=0;psword=0;buf=0;topUser=TOPUSER;botUser=BOTUSER;} // возвращяемся к основному экрану, сброс пароля 
         }
@@ -509,18 +518,18 @@ int main(void)
           unixTime = timestamp(); //  персчет в unixTime
     // -------------------- Bluetooth ----------------------------------
         if(HAL_GPIO_ReadPin(Bluetooth_STATE_GPIO_Port, Bluetooth_STATE_Pin)){ // если есть подключение по Bluetooth
-          un.crc = 0;
+          crc.val[0] = 0;
           for(uint8_t i=0;i<20;i++){
-            un.crc += upv.pvdata[i];
-            un.crc ^= (un.crc>>2);
+            crc.val[0] += upv.pvdata[i];
+            crc.val[0] ^= (crc.val[0]>>2);
           }
           for(uint8_t i=0;i<40;i++){
-            un.crc += eep.data[i];
-            un.crc ^= (un.crc>>2);
+            crc.val[0] += eep.data[i];
+            crc.val[0] ^= (crc.val[0]>>2);
           }
           HAL_UART_Transmit(&huart1,(uint8_t*)upv.pvdata,20,0x1000);// отправка upv
           HAL_UART_Transmit(&huart1,(uint8_t*)eep.data,40,0x1000);  // отправка eep
-          HAL_UART_Transmit(&huart1,(uint8_t*)un.data,4,0x1000);    // отправка crc, "\r=<CR>, \n=<LF>"
+          HAL_UART_Transmit(&huart1,(uint8_t*)crc.data,4,0x1000);   // отправка crc, "\r=<CR>, \n=<LF>"
         }
       }
   /*** ============================================= END таймер TIM4 1 Гц. ==================================================================== ***/

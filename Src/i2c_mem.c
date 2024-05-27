@@ -1,4 +1,21 @@
 // Так как чип AT24C32N имеет, три адресных входа (A0, A1 и A2), микросхеме доступны восемь адресов. от 0x50 до 0x57.
+/* Структура памяти чипа AT24C08 */
+/**
+  ******************************************************************************
+  * 0x0000 - 0x0027 - 40 byte
+  * 0x0028 - 0x002F - 8  byte резерв
+  *  4 байт Уставка температуры sp[0].spT->Сухой датчик; sp[1].spT->Влажный датчик
+  *  1 байт Уставка влажности Датчик HIH-5030/AM2301
+  *  1 байт Положение заслонки 
+  *  1 байт Поворот
+  *  1 байт Охлаждение (маска 0b00001111) пауза;
+  * 0x0030 - 0x003F - 16 byte -> 1,2 день 1 программы / 240 byte на 30 дней
+  * 0x0120 - 0x012F - 16 byte -> 1,2 день 2 программы / 240 byte на 30 дней
+  * 0x0210 - 0x021F - 16 byte -> 1,2 день 3 программы / 240 byte на 30 дней
+  * 0x0300 - 0x030F - 16 byte -> 1,2 день 4 программы / 240 byte на 30 дней
+  * 0x03F0 - 0x03FF - 16 byte резерв
+  ******************************************************************************  
+  */
 #include "main.h"
 #include "displ.h"
 #include "global.h"   // здесь определена структура eeprom и структура rampv
@@ -23,7 +40,7 @@ void dspl_error(uint8_t status)
 
 void eep_write(uint16_t memAddr, uint8_t *data, uint8_t amount){
 	int16_t writebyte;
-	uint8_t i/*, amount = EEP_DATA*/;
+	uint8_t i;
 	uint8_t *begData = data;
 	uint16_t begMemAddr = memAddr;
   EEPSAVE = 0;
@@ -165,7 +182,32 @@ void eep_initial(uint16_t memAddr, uint8_t *data){
 	ret_stat = HAL_I2C_IsDeviceReady(&EEPROM_I2C_PORT, eepMem.eepAddr, 1, HAL_MAX_DELAY);
 	if(ret_stat) {dspl_error(ret_stat); return;}
 
-	eep_write(memAddr, data);
+	eep_write(memAddr, data, EEP_DATA);
+}
+
+void prog_initial(uint16_t memAddr, uint8_t *data){
+  const uint8_t source[8]={
+    0x5E,0x01,// data[0,1];   spT[0]->Сухой датчик = 350 -> 35 гр.C
+    0x2C,0x01,// data[2,3];   spT[1]->Влажный датчик = 300 -> 30 гр.C
+    0,// data[4];             spRH->  Уставка влажности Датчик HIH-5030 -> 0%
+    0,// data[5];             Flap->  Положение заслонки 0% -> закрыта
+   60,// data[6];             timer-> Отключ.состояниe = 60 мин.
+   10,// data[7];             air->   Охлаждение (маска 0b00001111) пауза; = 10 мин., (маска 0b11110000) длительность если air=0-ОТКЛЮЧЕНО
+  };
+  uint8_t buff[16], i, xx=0x0030, yy;
+  memcpy(buff, source, 8);      // копирование 8 байт
+  memcpy(&buff[8], source, 8);  // копирование следующих 8 байт
+  for(yy=0;yy<4;yy++){          // 4 программы
+    for(i=0;i<20;i++){          // 20 суток инкубации
+      eep_write(xx, buff, 16);
+      xx +=16;
+    }
+    for(i=0;i<16;i++) buff[i] = 0;
+    for(i=0;i<10;i++){            // 10 суток простоя
+      eep_write(xx, buff, 16);
+      xx +=16;
+    }
+  }
 }
 
 uint8_t rtc_check(void){

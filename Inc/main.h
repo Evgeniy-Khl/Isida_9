@@ -239,6 +239,11 @@ union d2v{
     uint16_t val;
   };
 
+union d4v{
+  uint8_t data[4];  
+  uint16_t val[2]; 
+};
+
 struct rs485{
   uint8_t RXBuffer[16];
   uint8_t TXBuffer[96];

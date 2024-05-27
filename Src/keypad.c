@@ -10,6 +10,8 @@ extern RTC_DateTypeDef sDate;
 extern int8_t countsec, getButton, displmode;
 extern uint8_t ok0, ok1, keyBuffer[], setup, waitset, waitkey, modules, servis;
 extern int16_t alarmErr;
+extern char fileName[];
+extern union d4v file;
 uint8_t disableBeep, topOwner, topUser, botUser, psword, keynum;
 int16_t buf;
 /*
@@ -189,12 +191,24 @@ void checkkey(struct eeprom *t, struct rampv *ram){
               buf++; EEPSAVE=1; waitkey=WAITCOUNT;
               switch (servis)
                {
-                 case 7:  t->identif = buf&0x3F; break;         // C7 -> identif (1-63)
-                 case 8:  t->zonality= buf&0x3F; break;         // C8-> порог зональности в камере
-                 case 9:  t->turnTime= buf&0x3FF; break;        // C9 -> TURNTIME врем€ ожидани€ прохода лотков в сек.
-                 case 10: t->waitCooling=(buf&0x3F)*6; break;   // C10-> TIME OUT врем€ ожидани€ начала режима охлаждени€ в мин. 10 мин. *6 = 60(*10) -> 600 сек.
-                 case 11: xx = t->hysteresis&3; t->hysteresis = (buf&0x03)<<6; t->hysteresis |= xx; break; // C11-> разрешено использовать HIH-5030/AM2301
-                 case 12: t->koffCurr= buf&0xFF; break;         // C12-> koffCurr маштабный коэф. по току симистора
+                 case 7:  t->identif = buf&0x3F; 
+                          file.data[0]=3; file.data[1]=servis; file.data[2]=t->identif;
+                  break;         // C7 -> identif (1-63)
+                 case 8:  t->zonality= buf&0x3F; 
+                          file.data[0]=3; file.data[1]=servis; file.data[2]=t->zonality;
+                  break;         // C8-> порог зональности в камере
+                 case 9:  t->turnTime= buf&0x3FF; 
+                          file.data[0]=3; file.data[1]=servis; file.data[2]=t->turnTime;
+                  break;        // C9 -> TURNTIME врем€ ожидани€ прохода лотков в сек.
+                 case 10: t->waitCooling=(buf&0x3F)*6; 
+                          file.data[0]=3; file.data[1]=servis; file.data[2]=t->waitCooling;
+                  break;   // C10-> TIME OUT врем€ ожидани€ начала режима охлаждени€ в мин. 10 мин. *6 = 60(*10) -> 600 сек.
+                 case 11: xx = t->hysteresis&3; t->hysteresis = (buf&0x03)<<6; t->hysteresis |= xx; 
+                          file.data[0]=3; file.data[1]=servis; file.data[2]=t->hysteresis;
+                  break; // C11-> разрешено использовать HIH-5030/AM2301
+                 case 12: t->koffCurr= buf&0xFF; 
+                          file.data[0]=3; file.data[1]=servis; file.data[2]=t->koffCurr;
+                  break;         // C12-> koffCurr маштабный коэф. по току симистора
                  case 13: HAL_RTC_GetTime(&hrtc, &sTime, RTC_FORMAT_BIN);
                           sTime.Minutes = buf;
                           HAL_RTC_SetTime(&hrtc, &sTime, RTC_FORMAT_BIN);
@@ -205,14 +219,17 @@ void checkkey(struct eeprom *t, struct rampv *ram){
                   break;                                        // C14-> sTime.Minutes
                  case 15: HAL_RTC_GetDate(&hrtc, &sDate, RTC_FORMAT_BIN);
                           sDate.Date = buf;
+                          file.data[0]=2; file.data[1]=2; file.data[2]=(uint8_t)buf;
                           HAL_RTC_SetDate(&hrtc, &sDate, RTC_FORMAT_BIN);
                   break;                                        // C15-> sDate.Date
                  case 16: HAL_RTC_GetDate(&hrtc, &sDate, RTC_FORMAT_BIN);
                           sDate.Month = buf;
+                          file.data[0]=2; file.data[1]=3; file.data[2]=(uint8_t)buf;
                           HAL_RTC_SetDate(&hrtc, &sDate, RTC_FORMAT_BIN);
                   break;                                        // C15-> sDate.Month
                  case 17: HAL_RTC_GetDate(&hrtc, &sDate, RTC_FORMAT_BIN);
                           sDate.Year = buf;
+                          file.data[0]=2; file.data[1]=4; file.data[2]=(uint8_t)buf;
                           HAL_RTC_SetDate(&hrtc, &sDate, RTC_FORMAT_BIN);
                   break;                                        // C15-> sDate.Year
 
@@ -256,12 +273,24 @@ void checkkey(struct eeprom *t, struct rampv *ram){
               buf--; EEPSAVE=1; waitkey=WAITCOUNT;
               switch (servis)
                {
-                 case 7:  t->identif = buf&0x3F; break;         // C7 -> identif
-                 case 8:  t->zonality= buf&0x3F; break;         // C8-> порог зональности в камере
-                 case 9:  t->turnTime= buf&0x3FF; break;        // C9 -> TURNTIME врем€ ожидани€ прохода лотков в сек.
-                 case 10: t->waitCooling=(buf&0x3F)*6; break;   // C10-> TIME OUT врем€ ожидани€ начала режима охлаждени€ в мин. 10 мин. *6 = 60(*10) сек.
-                 case 11: xx = t->hysteresis&3; t->hysteresis = (buf&0x03)<<6; t->hysteresis |= xx; break; // C11-> разрешено использовать HIH-5030/AM2301
-                 case 12: t->koffCurr= buf&0xFF; break;         // C12-> koffCurr маштабный коэф. по току симистора
+                 case 7:  t->identif = buf&0x3F;
+                          file.data[0]=3; file.data[1]=servis; file.data[2]=t->identif;
+                  break;         // C7 -> identif
+                 case 8:  t->zonality= buf&0x3F;
+                          file.data[0]=3; file.data[1]=servis; file.data[2]=t->zonality;
+                  break;         // C8-> порог зональности в камере
+                 case 9:  t->turnTime= buf&0x3FF; 
+                          file.data[0]=3; file.data[1]=servis; file.data[2]=t->turnTime;
+                  break;        // C9 -> TURNTIME врем€ ожидани€ прохода лотков в сек.
+                 case 10: t->waitCooling=(buf&0x3F)*6; 
+                          file.data[0]=3; file.data[1]=servis; file.data[2]=t->waitCooling;
+                  break;   // C10-> TIME OUT врем€ ожидани€ начала режима охлаждени€ в мин. 10 мин. *6 = 60(*10) сек.
+                 case 11: xx = t->hysteresis&3; t->hysteresis = (buf&0x03)<<6; t->hysteresis |= xx; 
+                          file.data[0]=3; file.data[1]=servis; file.data[2]=t->hysteresis;
+                 break; // C11-> разрешено использовать HIH-5030/AM2301
+                 case 12: t->koffCurr= buf&0xFF; 
+                          file.data[0]=3; file.data[1]=servis; file.data[2]=t->koffCurr;
+                 break;         // C12-> koffCurr маштабный коэф. по току симистора
                  case 13: HAL_RTC_GetTime(&hrtc, &sTime, RTC_FORMAT_BIN);
                           sTime.Minutes = buf; sTime.Seconds = 0;
                           HAL_RTC_SetTime(&hrtc, &sTime, RTC_FORMAT_BIN);
@@ -272,14 +301,17 @@ void checkkey(struct eeprom *t, struct rampv *ram){
                   break;                                        // C14-> sTime.Hours
                  case 15: HAL_RTC_GetDate(&hrtc, &sDate, RTC_FORMAT_BIN);
                           sDate.Date = buf;
+                          file.data[0]=2; file.data[1]=2; file.data[2]=(uint8_t)buf;
                           HAL_RTC_SetDate(&hrtc, &sDate, RTC_FORMAT_BIN);
                   break;                                        // C15-> sDate.Date
                  case 16: HAL_RTC_GetDate(&hrtc, &sDate, RTC_FORMAT_BIN);
                           sDate.Month = buf;
+                          file.data[0]=2; file.data[1]=3; file.data[2]=(uint8_t)buf;
                           HAL_RTC_SetDate(&hrtc, &sDate, RTC_FORMAT_BIN);
                   break;                                        // C15-> sDate.Month
                  case 17: HAL_RTC_GetDate(&hrtc, &sDate, RTC_FORMAT_BIN);
                           sDate.Year = buf;
+                          file.data[0]=2; file.data[1]=4; file.data[2]=(uint8_t)buf;
                           HAL_RTC_SetDate(&hrtc, &sDate, RTC_FORMAT_BIN);
                   break;                                        // C15-> sDate.Year
                }
@@ -296,7 +328,8 @@ void checkkey(struct eeprom *t, struct rampv *ram){
            case KEY_3: if((t->state&7)==0) {servis=1; setup=0; displmode=0; waitset=20; waitkey=WAITCOUNT; beeper_ON(DURATION*2);} break;
            case KEY_6: psword=0; displmode=0; buf=0; t->state &=0xE7; servis=0; setup=0; waitkey=WAITCOUNT; beeper_ON(DURATION*10); break;// –≈∆»ћџ ќ“ Ћё„≈Ќџ
            case KEY_6_5: if((t->state&7)==0){t->state|=0x01; t->state&=0x7F; beeper_ON(DURATION*2);}
-                         else {t->state&=0x60; beeper_ON(DURATION*5);} countsec=-5; ok0=0; ok1=0; psword=0; EEPSAVE=1; waitset=1;
+                         else {t->state&=0x60; beeper_ON(DURATION*5);} 
+                         countsec=-5; ok0=0; ok1=0; psword=0; EEPSAVE=1; waitset=1; file.data[0]=1; file.data[1]=t->state;
                 break;
            case KEY_7_5: if((t->state&0x1F)==0) t->state|=0x80; countsec=-5; psword=0; EEPSAVE=1; waitset=1; break; //¬ Ћё„»“№ ѕоворот лотков при ќ“ Ћё„≈ЌЌќ… камере !!!
            case KEY_8_5: if(t->state&0x80) t->state&=0x7F; countsec=-5; psword=0; EEPSAVE=1; waitset=1; break;      //ќ“ Ћё„»“№ ѕоворот лотков при ќ“ Ћё„≈ЌЌќ… камере !!!
@@ -311,7 +344,7 @@ void checkkey(struct eeprom *t, struct rampv *ram){
            case KEY_2:   ram->pvT[1]++; break;     //?????????????????????????????????
            case KEY_3:   buf++; if(++psword>3){psword=0;buf=0;} waitset=5; break;
            case KEY_4:   buf++; buf <<= 1; psword++; waitset=5; break;
-           case KEY_5:   ++displmode; displmode&=7; waitset=255; break;//waitset=20;
+           case KEY_5:   ++displmode; displmode&=7; waitset=20; break;//waitset=255;
            case KEY_6:   psword=0; displmode=0; buf=0; t->state &=0xE7; servis=0; waitkey=WAITCOUNT; beeper_ON(DURATION*10); break;// –≈∆»ћџ ќ“ Ћё„≈Ќџ
            case KEY_7:   ram->pvT[0]--; break;     // тревога отключена на 10 мин.
            case KEY_8:   ram->pvT[0]++; break;     // тревога отключена на 10 мин.
