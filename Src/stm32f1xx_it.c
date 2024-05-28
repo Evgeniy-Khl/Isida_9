@@ -99,9 +99,9 @@ void HardFault_Handler(void)
   for(uint8_t i=0;i<8;i++) {setChar(i,SIMBL_BL); PointOff(i);}  // clear
   setChar(0,SIMBL_E); setChar(1,9);  setChar(2,9);  // "E99"
   SendDataTM1638();
-  HAL_Delay(2000);
-  // Выполняем "мягкое" аппаратное перезапуска микроконтроллера
-  NVIC_SystemReset();
+//  HAL_Delay(2000);
+//  // Выполняем "мягкое" аппаратное перезапуска микроконтроллера
+//  NVIC_SystemReset();
   /* USER CODE END HardFault_IRQn 0 */
   while (1)
   {
@@ -200,6 +200,7 @@ void PendSV_Handler(void)
 void SysTick_Handler(void)
 {
   /* USER CODE BEGIN SysTick_IRQn 0 */
+  /* ------  SysTick с периодом 1 мс.  ----*/
   beepOn--;
   bluetoothData.timeOut++;
   /* USER CODE END SysTick_IRQn 0 */

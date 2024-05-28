@@ -28,18 +28,17 @@ uint8_t humCondition(int16_t err, uint8_t alarm){
 int16_t UpdatePID(int16_t err, uint8_t cn, struct eeprom *t){
  uint16_t maxVal;
  float pPart, Ud;
-  if(cn==2) maxVal=t->maxRun*200; else maxVal=MAXPULS; // maxRun = 2000 -> 10 секунд; MAXPULS = 250 // 1100 -> 1.1 сек.
+  if(cn==2) maxVal=t->maxRun*200; else maxVal=MAXPULS; // maxRun = 2000 -> 10 секунд; MAXPULS = 210 // 1100 -> 1.1 сек.
   pPart = (float) err * t->pkoff[cn];           // расчет пропорциональной части
-//---- функци€ ограничени€ pPart ---------------
-  if (pPart < 0) pPart = 0;
-  else if (pPart > maxVal) pPart = maxVal;      // функци€ ограничени€
 //----------------------------------------------
   iPart[cn] += (float) t->pkoff[cn] / t->ikoff[cn] / 10 * err;  // приращение интегральной части
   Ud = pPart + iPart[cn];                       // выход регул€тора до ограничени€
 //---- функци€ ограничени€ Ud ------------------
   if (Ud < 0) Ud = 0;
   else if (Ud > maxVal) Ud = maxVal;            // функци€ ограничени€
-  iPart[cn] = Ud - pPart;                       // "антинасыщ€юща€" поправка
+//---- функци€ ограничени€ iPart ---------------
+  if (pPart > maxVal) iPart[cn] = 0;            // функци€ ограничени€ iPart
+  else if(pPart > 0)  iPart[cn] = Ud - pPart;   // "антинасыщ€юща€" поправка
   return Ud;
 };
 
@@ -54,7 +53,7 @@ uint16_t heater(int16_t err, struct eeprom *t){
 }
 
 uint16_t humidifier(int16_t err, struct eeprom *t){
-  uint16_t result, minR, maxR;
+  uint16_t result=0, minR, maxR;
   static int8_t keep_up;
   // релейный режим работы  0-Ќ≈“; 1->по кан.[0] 2->по кан.[1] 3->по кан.[0]&[1] 4->по кан.[1] импульсный режим
   if(t->relayMode&2){
@@ -66,13 +65,13 @@ uint16_t humidifier(int16_t err, struct eeprom *t){
   else if(t->relayMode==4){
     minR = t->minRun * 20;                                      // minRun -> 5*20=100    -> 0.5сек.
     maxR = t->maxRun * 200;                                     // maxRun -> 10*200=2000 -> 10 сек.
-    valRun = UpdatePID(err, 2, t);                              // определение длительности ¬ Ћ. состо€ни€
-    if(valRun < minR) valRun = minR;                            // минимальный предел
-    else if(valRun > maxR) valRun = maxR;                       // максимальный предел
-    if(valRun > t->period) valRun = t->period;                  // длит. впрыска не должна превыщать длит.переода (period = 60 -> 60 сек. = 1 мин.)
-    if(err<=0) valRun = 0;                                      // отключение впрыска по 2 каналу если перелив
+    result = UpdatePID(err, 2, t);                              // определение длительности ¬ Ћ. состо€ни€
+    if(result < minR) result = minR;                            // минимальный предел
+    else if(result > maxR) result = maxR;                       // максимальный предел
+    if(result > t->period) result = t->period;                  // длит. впрыска не должна превыщать длит.переода (period = 60 -> 60 сек. = 1 мин.)
+    if(err<=0) result = 0;                                      // отключение впрыска по 2 каналу если перелив
   }
-  else result = UpdatePID(err, 1, t);
+  else result = UpdatePID(err, 1, t);                           // дл€ режима 0-Ќ≈“; 1->по кан.[0]
   return result;
 }
 

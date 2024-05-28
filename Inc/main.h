@@ -133,7 +133,7 @@ void Error_Handler(void);
 #define ON          1
 #define OFF         0
 #define UNCHANGED   2
-#define FLAPOPEN    100     // значение при котором зслонка полностью открыта
+//#define FLAPOPEN    100     // значение при котором зслонка полностью открыта
 #define FLAPCLOSE   0       // значение при котором зслонка полностью закрыта
 #define DATAREAD    0xA1    // Read Scratchpad
 #define SETFLAP     0xA2    // аварийное полное открытие заслонки
@@ -143,7 +143,7 @@ void Error_Handler(void);
 #define SENSOREGG   171
 #define DURATION    100
 #define COUNT       500
-#define MAXPULS     250 // 1100    // 1.1 сек.
+#define MAXPULS     210 // 1100    // 1.1 сек.
 
 #define ID_HALL         0xF1    // идентификатор блока
 #define ID_HORIZON      0xF3    // идентификатор блока

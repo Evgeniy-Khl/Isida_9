@@ -14,8 +14,8 @@
   * License. You may obtain a copy of the License at:
   *                        opensource.org/licenses/BSD-3-Clause
   *
-  ****************************************************************************** 
-  Program Size: Code=43332 RO-data=1844 RW-data=216 ZI-data=3656  
+  ******************************************************************************  
+  Program Size: Code=43228 RO-data=1844 RW-data=216 ZI-data=3656  
   */
 /* USER CODE END Header */
 
@@ -143,7 +143,7 @@ union serialdata{
     uint8_t spCO2;      // 1 байт ind=23;       опорное значение для управления концетрацией СО2
     uint8_t koffCurr;   // 1 байт ind=24;       маштабный коэф. по току симистора  (150 для AC1010)
     uint8_t hysteresis; // 1 байт ind=25;       гистерезис канала увлажнения маска 0x03; разрешение использования HIH-5030 маска 0x40; AM2301 маска 0x80;
-    uint8_t zonality;   // 1 байт ind=26;       порог зональности в камере
+    uint8_t zonaFlap;   // 1 байт ind=26;       порог зональности в камере
     uint8_t turnTime;   // 1 байт ind=27;       время ожидания прохода лотков в секундах
     uint8_t waitCooling;// 1 байт ind=28        время ожидания начала режима охлаждения
     uint8_t pkoff[2];   // 2 байт ind=29;ind=30 пропорциональный коэфф.
@@ -386,29 +386,22 @@ int main(void)
           if(upv.pv.power > 100) upv.pv.power = 100;
           statPw[0] += upv.pv.power;      // расчет эконометра
       // ---------------------- УВЛАЖНИТЕЛЬ --------------------------------
-          if(ok0&1){  // отключение УВЛАЖНЕНИЯ при РАЗОГРЕВЕ и ПЕРЕОХЛАЖДЕНИИ
+          if(ok0&1){  // запрещение УВЛАЖНЕНИЯ при РАЗОГРЕВЕ и ПЕРЕОХЛАЖДЕНИИ
+            int16_t err;
             if(HIH5030||AM2301){  // подключен электронный датчик влажности
-              int16_t err = eep.sp.spRH[1] - upv.pv.pvRH;
-              if(humCondition(err, eep.sp.alarm[1])) upv.pv.warning |= 0x02; // ОТКЛОНЕНИЕ по влажности
-              // релейный режим работы  0-НЕТ; 1->по кан.[0] 2->по кан.[1] 3->по кан.[0]&[1] 4->по кан.[1] импульсный режим
-              if(eep.sp.relayMode==4) valRun = humidifier(err, &eep.sp);
-              else {
-                pwTriac1 = humidifier(err, &eep.sp);
-                if(pwTriac1 && (upv.pv.fuses&0x01)==0) HUMIDI = 1;  // HUMIDIFIER On
-              }
+              err = eep.sp.spRH[1] - upv.pv.pvRH;
+              pwTriac1 = humidifier(err, &eep.sp);
             }
-            else if(upv.pv.pvT[1] < 850){
-              int16_t err = eep.sp.spT[1] - upv.pv.pvT[1];
-              if(humCondition(err, eep.sp.alarm[1])) upv.pv.warning |= 0x02; // ОТКЛОНЕНИЕ по влажности
-              // релейный режим работы  0-НЕТ; 1->по кан.[0] 2->по кан.[1] 3->по кан.[0]&[1] 4->по кан.[1] импульсный режим
-              if(eep.sp.relayMode==4) valRun = humidifier(err, &eep.sp);
-              else {
-                pwTriac1 = humidifier(err, &eep.sp);
-                if(pwTriac1 && (upv.pv.fuses&0x01)==0) HUMIDI = 1;  // HUMIDIFIER On
+            else {
+              if(upv.pv.pvT[1] < 850){
+              err = eep.sp.spT[1] - upv.pv.pvT[1];
+              pwTriac1 = humidifier(err, &eep.sp);
               }
+              else {upv.pv.errors |= 0x02; pwTriac1 = 0;}   // ОШИБКА ДАТЧИКА влажности !!!
             }
-            else upv.pv.errors |= 0x02;   // ОШИБКА ДАТЧИКА влажности !!!
-            tmpbyte = pwTriac1 / 10;
+            if(humCondition(err, eep.sp.alarm[1])) upv.pv.warning |= 0x02; // ОТКЛОНЕНИЕ по влажности
+            if(pwTriac1 && (upv.pv.fuses&0x01)==0) HUMIDI = 1;  // HUMIDIFIER On
+            tmpbyte = pwTriac1 / 2;
             if(tmpbyte > 100) tmpbyte = 100;
             statPw[1] += tmpbyte;         // расчет эконометра
           }
@@ -419,24 +412,24 @@ int main(void)
               int16_t err = upv.pv.pvT[0] - eep.sp.spT[0];
               if(err>=eep.sp.extOff[0]) tmpbyte = ON; else if(err<=0) tmpbyte = OFF; // при err >=0.2грд. -> ON; при err <=0грд. -> OFF;
             }
-            else upv.pv.errors |= 0x01;             // ОШИБКА ДАТЧИКА температуры !!!
+            else upv.pv.errors |= 0x01;             // ОШИБКА ДАТЧИКА температуры! (код 51, 53)
           }
           if(upv.pv.fuses&0x02) tmpbyte = OFF;      // ПРЕДОХРАНИТЕЛЬ доп. канал №1
           switch (tmpbyte){
-            case ON:  FLAP = ON;  upv.pv.flap = FLAPOPEN;  if(modules&8) chkflap(SETFLAP,  &upv.pv.flap); break;// установка заслонки
+            case ON:  FLAP = ON;  upv.pv.flap = eep.sp.zonaFlap&0x3F+37;  if(modules&8) chkflap(SETFLAP,  &upv.pv.flap); break;// установка заслонки zonaFlap&0x3F=63+37=100%
             case OFF: FLAP = OFF; upv.pv.flap = FLAPCLOSE; if(modules&8) chkflap(DATAREAD, &upv.pv.flap); break;// установка заслонки; сброс флага запрещения принудительной подачи воды
           }
       //----------------------- ЗОНАЛЬНОСТЬ температуры камеры -------------
           if(ok0){
-              if(HIH5030||AM2301) {if(ds18b20_amount>1) {if(abs(upv.pv.pvT[0]-upv.pv.pvT[1])>eep.sp.zonality) upv.pv.warning |=0x08;}} // Большой перепад температур.
-              else     {if(ds18b20_amount>2) {if(abs(upv.pv.pvT[0]-upv.pv.pvT[2])>eep.sp.zonality) upv.pv.warning |=0x08;}};// Большой перепад температур.
+              if(HIH5030||AM2301) {if(ds18b20_amount>1) {if(abs(upv.pv.pvT[0]-upv.pv.pvT[1])>eep.sp.zonaFlap) upv.pv.warning |=0x08;}} // Большой перепад температур.
+              else {if(ds18b20_amount>2) {if(abs(upv.pv.pvT[0]-upv.pv.pvT[2])>eep.sp.zonaFlap) upv.pv.warning |=0x08;}};// Большой перепад температур.
           }
           if(!(HIH5030||AM2301) && (upv.pv.pvT[1]-upv.pv.pvT[0])>20){
             if(upv.pv.pvT[1] < 850){
-              upv.pv.warning =0x10; 					// Неправильная конфигурация датчиков !!
-              pwTriac0 = 50;
+              upv.pv.warning =0x10;               // Неправильная конфигурация датчиков! (код 38, 40)
+              pwTriac0 = 100; upv.pv.power = 50;  // Мощность ограничена 50%
             }
-            else upv.pv.errors |= 0x02;   // ОШИБКА ДАТЧИКА влажности !!!
+            else upv.pv.errors |= 0x02;           // ОШИБКА ДАТЧИКА влажности! (код 52, 53)
           }
       //----------------------- ПОВОРОТ ЛОТКОВ Статистика камеры -----------
           if(eep.sp.koffCurr){
@@ -474,14 +467,15 @@ int main(void)
         }
     //--------------------- КАМЕРА ОТКЛЮЧЕНА ---------------------------
         else if((eep.sp.state&7)==0){
-            if(eep.sp.relayMode==4) valRun = 0;                            // ОТКЛЮЧИТЬ импульсное управление увлажнителем
-            if(servis){                                                   // включен СЕРВИСНЫЙ режим
+            if(eep.sp.relayMode==4) valRun = 0;                                         // ОТКЛЮЧИТЬ импульсное управление увлажнителем
+            if(servis){                                                                 // включен СЕРВИСНЫЙ режим
               switch (servis){
-                 case 1: pwTriac0=MAXPULS; portOut.value = 0x01; break;   // НАГРЕВАТЕЛЬ
-                 case 2: pwTriac1=MAXPULS; portOut.value = 0x02; break;   // УВЛАЖНИТЕЛЬ
-                 case 3: portOut.value = 0x04; upv.pv.flap = FLAPOPEN; if(modules&8) chkflap(SETFLAP, &upv.pv.flap); break; // ПРОВЕТРИВАНИЕ, СЕРВОПРИВОД 90грд.
-                 case 4: portOut.value = 0x08; break;                     // ДОПОЛНИТЕЛЬНЫЙ КАНАЛ
-                 case 5: portOut.value = 0x10; break;                     // ЛОТКИ ВВЕРХ
+                 case 1: pwTriac0=MAXPULS; portOut.value = 0x01; break;                 // НАГРЕВАТЕЛЬ
+                 case 2: pwTriac1=MAXPULS; portOut.value = 0x02; break;                 // УВЛАЖНИТЕЛЬ
+                 case 3: portOut.value = 0x04; upv.pv.flap = eep.sp.zonaFlap&0x3F+37;   //zonaFlap&0x3F=63+37=100%
+                         if(modules&8) chkflap(SETFLAP, &upv.pv.flap); break;           // ПРОВЕТРИВАНИЕ, СЕРВОПРИВОД 90грд.
+                 case 4: portOut.value = 0x08; break;                                   // ДОПОЛНИТЕЛЬНЫЙ КАНАЛ
+                 case 5: portOut.value = 0x10; break;                                   // ЛОТКИ ВВЕРХ
                  default: portOut.value = 0; upv.pv.flap=FLAPCLOSE;
                           if(modules&8) chkflap(DATAREAD, &upv.pv.flap);// ВСЕ ОТКЛЮЧЕНО, СЕРВОПРИВОД 0грд.
               }
@@ -500,14 +494,14 @@ int main(void)
         if(waitset){
           if(--waitset==0){
             if(EEPSAVE){
-              eep_write(0x0000, eep.data, EEP_DATA);                            // запись в энергонезависимую память
-              if(file.data[0]){
+              eep_write(0x0000, eep.data, EEP_DATA);    // запись в энергонезависимую память
+              if(file.data[0]){                         // заполнены поля для файла *.eep
                 if(file.data[0]==2){
                   sprintf(fileName,"%02u_%02u_%02u",sDate.Year,sDate.Month,sDate.Date);
                   writeDateToBackup(RTC_BKP_DR1);       // і запишемо до backup регістрів дату
                 }
-                if(cardOk) My_LinkDriver(".eep");  // запись на SD
-                file.data[0] = 0;
+                if(cardOk) My_LinkDriver(".eep");       // если вставлена SD запись в файл *.eep
+                file.data[0] = 0;                       // очистим флаг
               }
             }
             if(servis==7){upv.pv.node = eep.sp.identif; bluetoothName(eep.sp.identif);}   // коррекция Broadcast name 
@@ -786,7 +780,7 @@ static void MX_SPI1_Init(void)
   hspi1.Init.CLKPolarity = SPI_POLARITY_LOW;
   hspi1.Init.CLKPhase = SPI_PHASE_1EDGE;
   hspi1.Init.NSS = SPI_NSS_SOFT;
-  hspi1.Init.BaudRatePrescaler = SPI_BAUDRATEPRESCALER_32;
+  hspi1.Init.BaudRatePrescaler = SPI_BAUDRATEPRESCALER_256;
   hspi1.Init.FirstBit = SPI_FIRSTBIT_MSB;
   hspi1.Init.TIMode = SPI_TIMODE_DISABLE;
   hspi1.Init.CRCCalculation = SPI_CRCCALCULATION_DISABLE;

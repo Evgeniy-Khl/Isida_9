@@ -95,7 +95,8 @@ void chkdoor(struct eeprom *t, struct rampv *ram){
      ram->fuses |= 0x80;  // Состояние дверей
      if((t->state&7)==3)  //-- если "подгототка к ОТКЛЮЧЕНИЮ" то отключить камеру --
       {
-       t->state &=0xFC; t->state |=0x04; counter = 0; ram->power=0; HUMIDI = OFF; FLAP = ON; ram->flap=FLAPOPEN; if(modules&8) chkflap(SETFLAP, &ram->flap);
+       t->state &=0xFC; t->state |=0x04; counter = 0; ram->power=0; HUMIDI = OFF; FLAP = ON; ram->flap = t->zonaFlap&0x3F+37;   //zonaFlap&0x3F=63+37=100% 
+       if(modules&8) chkflap(SETFLAP, &ram->flap);
        if(t->extendMode==1) EXTRA = ON; // доп. канал (extendMode==1->ВЕНТИЛЯЦИЯ)
       }
      else if((t->state&7)==1) beeper_ON(DURATION*5);//-- если камера ВКЛ. то вкл. тревогу.
