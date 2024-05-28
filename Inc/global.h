@@ -50,6 +50,7 @@ extern struct eeprom {
     uint8_t nothing1;   // 1 байт ind=39;       не используется !
 } sp;// ------------------ ИТОГО 40 bytes -------------------------------
 
+extern union Byte fuseOut;
 extern union Byte portFlag;
 extern union Byte portOut;
 /* ---структура с битовыми полями -----*/

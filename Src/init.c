@@ -27,9 +27,8 @@ void init(struct eeprom *t, struct rampv *ram){
     }
   }
 //  else if(t->hysteresis&0x80) {
-//    AM2301 = am2301_Read(ram, t->spRH[0]);
-//    HAL_Delay(1000);
 //    am2301_port_init();
+//    //AM2301 = am2301_Read(ram, t->spRH[0]);
 //    AM2301 = am2301_Start();
 //    if(AM2301) setChar(2,2);              // если обнаружен AM2301 "2d2"
 //  }

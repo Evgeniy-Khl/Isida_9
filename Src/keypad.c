@@ -173,7 +173,7 @@ void checkkey(struct eeprom *t, struct rampv *ram){
                 
                 case 26: if(buf>32) buf=32; else if (buf<-64) buf=-64; t->spRH[0]=buf; break; // подстройка датчика HIH-5030
                 case 27://сохр.знач.разрешения;    запишем гистерезис;    добав.знач.разрешения 
-                         xx = t->hysteresis>>6; t->hysteresis = buf&0x03; t->hysteresis |= xx<<6; break; // гистерезис ограничено 3
+                         xx = t->hysteresis&0xC0; t->hysteresis = buf&0x03; t->hysteresis |= xx; break; // гистерезис ограничено 3
                 case 28: buf&=0x3F; if(buf<1)  buf=1;  t->pkoff[0]=buf; break;       // ограничено 1 - 63;
                 case 29: buf&=0x7F; if(buf<10) buf=10; t->ikoff[0]=buf; break;       // ограничено 10 - 127;
                 case 30: buf&=0x3F; if(buf<1)  buf=1;  t->pkoff[1]=buf; break;       // ограничено 1 - 63;
@@ -200,8 +200,8 @@ void checkkey(struct eeprom *t, struct rampv *ram){
                           file.data[2]=buf&0x03;
                   break;         // C8-> порог зональности в камере
                  case 9:// сохр.знач.Зональности;    запишем FLAPOPEN;     добав.знач.Зональности  
-                          xx = t->zonaFlap>>6;   t->zonaFlap = ((buf-37)&0x3F); t->zonaFlap |= xx<<6;  // (маска 0b0011 1111) 100-37=63->0x3F
-                          file.data[2]=(buf-37)&0x3F;
+                          xx = t->zonaFlap&0xC0;   t->zonaFlap = ((buf-37)&0x3F); t->zonaFlap |= xx;  // (маска 0b0011 1111) 100-37=63->0x3F
+                          file.data[2]=buf;
                   break;         // C9-> FLAPOPEN
                  case 10:  t->turnTime= buf&0x3FF; file.data[2]=t->turnTime; break;       // 10-> TURNTIME время ожидания прохода лотков в сек. 
                  case 11: t->waitCooling=(buf&0x3F)*6; file.data[2]=t->waitCooling; break;// 11-> TIME OUT ожидания начала охлаждения в мин. 10 мин. *6 = 60(*10) -> 600 сек. 
@@ -243,7 +243,7 @@ void checkkey(struct eeprom *t, struct rampv *ram){
                 {
                  case 7: buf=t->identif; break;                 // C7 -> identif
                  case 8: buf=t->zonaFlap>>6; break;             // C8-> порог зональности в камере (маска 0b1100 0000)
-                 case 9: buf=t->zonaFlap&0x3F+37; break;        // C9-> FLAPOPEN (маска 0b0011 1111) 63+37=100%
+                 case 9: buf=(t->zonaFlap&0x3F)+37; break;        // C9-> FLAPOPEN (маска 0b0011 1111) 63+37=100%
                  case 10: buf=t->turnTime; break;               // 10-> TURNTIME время ожидания прохода лотков в сек.
                  case 11: buf=t->waitCooling/6; break;          // 11-> TIME OUT время ожидания начала режима охлаждения в мин. 60(*10)/6 = 10 мин.
                  case 12: buf=t->hysteresis>>6; break;          // 12-> разрешено использовать HIH-5030/AM2301 (маска 0b1100 0000)
@@ -281,9 +281,9 @@ void checkkey(struct eeprom *t, struct rampv *ram){
                           xx = t->zonaFlap&0x3F; t->zonaFlap = (buf&0x03)<<6; t->zonaFlap |= xx;  // (маска 0b1100 0000)
                           file.data[2]=buf&0x03;
                   break;         // C8-> порог зональности в камере
-                 case 9:// сохр.знач.Зональности;    запишем FLAPOPEN;     добав.знач.Зональности  
-                          xx = t->zonaFlap>>6;   t->zonaFlap = ((buf-37)&0x3F); t->zonaFlap |= xx<<6;  // (маска 0b0011 1111) 100-37=63->0x3F
-                          file.data[2]=(buf-37)&0x3F;
+                 case 9:// сохр.знач.Зональности;    запишем FLAPOPEN;         добав.знач.Зональности  
+                          xx = t->zonaFlap&0xC0; t->zonaFlap = ((buf-37)&0x3F); t->zonaFlap |= xx;  // (маска 0b0011 1111) 100-37=63->0x3F
+                          file.data[2]=buf;
                   break;         // C9-> FLAPOPEN
                  case 10:  t->turnTime= buf&0x3FF; file.data[2]=t->turnTime; break;       // 10 -> TURNTIME время ожидания прохода лотков в сек.
                  case 11: t->waitCooling=(buf&0x3F)*6; file.data[2]=t->waitCooling; break;// 11-> TIME OUT ожидания начала охлаждения в мин. 10 мин. *6 = 60(*10) сек.
@@ -345,7 +345,7 @@ void checkkey(struct eeprom *t, struct rampv *ram){
            case KEY_2:   ram->pvT[1]++; break;     //?????????????????????????????????
            case KEY_3:   buf++; if(++psword>3){psword=0;buf=0;} waitset=5; break;
            case KEY_4:   buf++; buf <<= 1; psword++; waitset=5; break;
-           case KEY_5:   ++displmode; displmode&=7; waitset=20; break;//waitset=255;
+           case KEY_5:   ++displmode; displmode&=7; waitset=255; break;//waitset=20;
            case KEY_6:   psword=0; displmode=0; buf=0; t->state &=0xE7; servis=0; waitkey=WAITCOUNT; beeper_ON(DURATION*10); break;// РЕЖИМЫ ОТКЛЮЧЕНЫ
            case KEY_7:   ram->pvT[0]--; break;     // тревога отключена на 10 мин.
            case KEY_8:   ram->pvT[0]++; break;     // тревога отключена на 10 мин.

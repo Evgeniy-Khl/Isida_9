@@ -15,7 +15,7 @@
   *                        opensource.org/licenses/BSD-3-Clause
   *
   ******************************************************************************  
-  Program Size: Code=43228 RO-data=1844 RW-data=216 ZI-data=3656  
+  Program Size: Code=43388 RO-data=1844 RW-data=216 ZI-data=3656  
   */
 /* USER CODE END Header */
 
@@ -74,6 +74,7 @@ RTC_DateTypeDef sDate;
 volatile uint16_t adc[3] = {0,0,0};    // у нас три канала АЦП, поэтому массив из двух элементов
 volatile uint8_t flag = 0;             // флаг окончания преобразования АЦП
 char fileName[9]={0};
+union Byte fuseOut;
 union Byte portOut;
 union Byte portFlag;
 union d4v crc;
@@ -203,7 +204,16 @@ uint8_t bluetoothName(uint8_t number);
 
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
-
+// Функция обратного вызова обработки прерывания EXTI Line9 External Interrupt
+void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin){
+//  switch (GPIO_Pin){
+//   	case GPIO_PIN_0: upv.pv.fuses |= 0x01; HUMIDI = OFF; break;// PA0 - OUT2 увлажнитель
+//   	case GPIO_PIN_1: upv.pv.fuses |= 0x02; FLAP = OFF;   break;// PA1 - OUT3 вентиляция
+//   	case GPIO_PIN_2: upv.pv.fuses |= 0x04; EXTRA = OFF;  break;// PA2 - OUT4 вспомогательны канал 2
+//   	case GPIO_PIN_3: upv.pv.fuses |= 0x08; TURN = OFF;   break;// PA3 - OUT5 поворот
+//   } 
+  set_Output();
+}
 /* USER CODE END 0 */
 
 /**
@@ -400,7 +410,7 @@ int main(void)
               else {upv.pv.errors |= 0x02; pwTriac1 = 0;}   // ОШИБКА ДАТЧИКА влажности !!!
             }
             if(humCondition(err, eep.sp.alarm[1])) upv.pv.warning |= 0x02; // ОТКЛОНЕНИЕ по влажности
-            if(pwTriac1 && (upv.pv.fuses&0x01)==0) HUMIDI = 1;  // HUMIDIFIER On
+            if(pwTriac1 && FUSE0==0) HUMIDI = 1;  // HUMIDIFIER On
             tmpbyte = pwTriac1 / 2;
             if(tmpbyte > 100) tmpbyte = 100;
             statPw[1] += tmpbyte;         // расчет эконометра
@@ -414,15 +424,17 @@ int main(void)
             }
             else upv.pv.errors |= 0x01;             // ОШИБКА ДАТЧИКА температуры! (код 51, 53)
           }
-          if(upv.pv.fuses&0x02) tmpbyte = OFF;      // ПРЕДОХРАНИТЕЛЬ доп. канал №1
+          if(FUSE1&0x02) tmpbyte = OFF;      // ПРЕДОХРАНИТЕЛЬ доп. канал №1
           switch (tmpbyte){
             case ON:  FLAP = ON;  upv.pv.flap = eep.sp.zonaFlap&0x3F+37;  if(modules&8) chkflap(SETFLAP,  &upv.pv.flap); break;// установка заслонки zonaFlap&0x3F=63+37=100%
             case OFF: FLAP = OFF; upv.pv.flap = FLAPCLOSE; if(modules&8) chkflap(DATAREAD, &upv.pv.flap); break;// установка заслонки; сброс флага запрещения принудительной подачи воды
           }
       //----------------------- ЗОНАЛЬНОСТЬ температуры камеры -------------
           if(ok0){
-              if(HIH5030||AM2301) {if(ds18b20_amount>1) {if(abs(upv.pv.pvT[0]-upv.pv.pvT[1])>eep.sp.zonaFlap) upv.pv.warning |=0x08;}} // Большой перепад температур.
-              else {if(ds18b20_amount>2) {if(abs(upv.pv.pvT[0]-upv.pv.pvT[2])>eep.sp.zonaFlap) upv.pv.warning |=0x08;}};// Большой перепад температур.
+            uint8_t zonality;
+            zonality = eep.sp.zonaFlap>>6;
+            if(HIH5030||AM2301) {if(ds18b20_amount>1) {if(abs(upv.pv.pvT[0]-upv.pv.pvT[1])>zonality) upv.pv.warning |=0x08;}} // Большой перепад температур. (код 30)
+            else {if(ds18b20_amount>2) {if(abs(upv.pv.pvT[0]-upv.pv.pvT[2])>zonality) upv.pv.warning |=0x08;}};// Большой перепад температур. (код 30)
           }
           if(!(HIH5030||AM2301) && (upv.pv.pvT[1]-upv.pv.pvT[0])>20){
             if(upv.pv.pvT[1] < 850){
@@ -460,6 +472,7 @@ int main(void)
           }
       // ---------------------- ВСПОМОГАТЕЛЬНЫЙ ----------------------------
           tmpbyte = extra_2(&eep.sp, &upv.pv);
+          if(FUSE2&0x04) tmpbyte = OFF;      // ПРЕДОХРАНИТЕЛЬ доп. канал №2
           switch (tmpbyte){
               case ON:  EXTRA = ON;  break;
               case OFF: EXTRA = OFF; break;
@@ -531,6 +544,7 @@ int main(void)
   /*** --------------------------------------------------- ИНДИКАЦИЯ -------------------------------------------------------------------------- ***/
       if(DISPLAY){
         DISPLAY = 0;
+        upv.pv.fuses = fuseOut.value;
         if(setup) display_setup(&eep.sp);
         else if(servis) display_servis(&upv.pv);
         else display(&eep.sp, &upv.pv);
@@ -541,12 +555,12 @@ int main(void)
 
     /* USER CODE BEGIN 3 */
       if(coolerAdc < 250) COOLER=0; else if(coolerAdc > 300) COOLER = 1;  // температура 40С = 2,50V; 55C = 3.0V
-      if(pwTriac0 < 0) {pwTriac0=0; HEATER = 0; LEDOFF = 1; /*set_Pulse(500);*/}  // HEATER Off  64 mks
-      if(pwTriac1 < 0) {pwTriac1=0; HUMIDI = 0; LEDOFF = 1;}  // HUMIDIFIER Off
+      if(pwTriac0 < 0) {pwTriac0=0; HEATER = 0; LEDOFF = 1; /*set_Pulse(500);*/}  // HEATER Off  64 mks // LEDOFF = 1 для быстрого отключения светодиодов pwTriac0
+      if(pwTriac1 < 0) {pwTriac1=0; HUMIDI = 0; LEDOFF = 1;}  // HUMIDIFIER Off // LEDOFF = 1 для быстрого отключения светодиодов pwTriac1
       if(eep.sp.relayMode==4){                                 // импульсный режим работы насоса
         if(pulsPeriod < 0){
           pulsPeriod = eep.sp.period;
-          if(pwTriac1 && (upv.pv.fuses&0x01)==0) {pwTriac1=valRun; HUMIDI = 1; LEDOFF = 1;}  // HUMIDIFIER On
+          if(pwTriac1 && (upv.pv.fuses&0x01)==0) {pwTriac1=valRun; HUMIDI = 1; LEDOFF = 1;}  // HUMIDIFIER On // LEDOFF = 1 для быстрого отключения светодиодов pwTriac1
         }
       }
       // LEDOFF = 1 для быстрого отключения светодиодов pwTriac0, pwTriac1
@@ -1036,10 +1050,10 @@ static void MX_GPIO_Init(void)
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
   HAL_GPIO_Init(LED_GPIO_Port, &GPIO_InitStruct);
 
-  /*Configure GPIO pins : FUSE2_Pin FUSE3_Pin FUSE4_Pin FUSE5_Pin */
-  GPIO_InitStruct.Pin = FUSE2_Pin|FUSE3_Pin|FUSE4_Pin|FUSE5_Pin;
-  GPIO_InitStruct.Mode = GPIO_MODE_INPUT;
-  GPIO_InitStruct.Pull = GPIO_NOPULL;
+  /*Configure GPIO pins : PA0 PA1 PA2 PA3 */
+  GPIO_InitStruct.Pin = GPIO_PIN_0|GPIO_PIN_1|GPIO_PIN_2|GPIO_PIN_3;
+  GPIO_InitStruct.Mode = GPIO_MODE_IT_FALLING;
+  GPIO_InitStruct.Pull = GPIO_PULLUP;
   HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
 
   /*Configure GPIO pin : OUT_RCK_Pin */
@@ -1094,6 +1108,19 @@ static void MX_GPIO_Init(void)
   GPIO_InitStruct.Pull = GPIO_PULLUP;
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
   HAL_GPIO_Init(SD_CS_GPIO_Port, &GPIO_InitStruct);
+
+  /* EXTI interrupt init*/
+  HAL_NVIC_SetPriority(EXTI0_IRQn, 0, 0);
+  HAL_NVIC_EnableIRQ(EXTI0_IRQn);
+
+  HAL_NVIC_SetPriority(EXTI1_IRQn, 0, 0);
+  HAL_NVIC_EnableIRQ(EXTI1_IRQn);
+
+  HAL_NVIC_SetPriority(EXTI2_IRQn, 0, 0);
+  HAL_NVIC_EnableIRQ(EXTI2_IRQn);
+
+  HAL_NVIC_SetPriority(EXTI3_IRQn, 0, 0);
+  HAL_NVIC_EnableIRQ(EXTI3_IRQn);
 
 }
 

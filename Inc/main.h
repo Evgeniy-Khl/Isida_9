@@ -63,14 +63,6 @@ void Error_Handler(void);
 /* Private defines -----------------------------------------------------------*/
 #define LED_Pin GPIO_PIN_13
 #define LED_GPIO_Port GPIOC
-#define FUSE2_Pin GPIO_PIN_0
-#define FUSE2_GPIO_Port GPIOA
-#define FUSE3_Pin GPIO_PIN_1
-#define FUSE3_GPIO_Port GPIOA
-#define FUSE4_Pin GPIO_PIN_2
-#define FUSE4_GPIO_Port GPIOA
-#define FUSE5_Pin GPIO_PIN_3
-#define FUSE5_GPIO_Port GPIOA
 #define ADC_COOLER_Pin GPIO_PIN_4
 #define ADC_COOLER_GPIO_Port GPIOA
 #define SD_SCK_Pin GPIO_PIN_5
@@ -261,6 +253,14 @@ struct bluetooth{
   uint8_t err;
 } ;
 
+#define FUSE0   fuseOut.bitfield.a0  // УВЛАЖНИТЕЛЬ
+#define FUSE1   fuseOut.bitfield.a1  // Заслонка воздухообмена
+#define FUSE2 	fuseOut.bitfield.a2  // Вспомогательный канал
+#define FUSE3   fuseOut.bitfield.a3  // Поворот лотков
+#define DOOR  	fuseOut.bitfield.a4  // дверь открыта
+#define FAN   	fuseOut.bitfield.a5  // останов тихоходного вентилятора
+#define TRAYS   fuseOut.bitfield.a6  // нет поворота лотков
+#define OTHER   fuseOut.bitfield.a7  // 
 
 #define CHECK   portFlag.bitfield.a0  // Start of all checks
 #define ALARM   portFlag.bitfield.a1  // Alarm flag
