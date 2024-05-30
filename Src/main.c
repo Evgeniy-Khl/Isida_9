@@ -70,12 +70,11 @@ RTC_TimeTypeDef sTime;
 RTC_DateTypeDef sDate;
 volatile uint16_t adc[3] = {0,0,0};    // у нас три канала АЦП, поэтому массив из двух элементов
 volatile uint8_t flag = 0;             // флаг окончания преобразования АЦП
-char fileName[9]={0};
 union Byte fuseOut;
 union Byte portOut;
 union Byte portFlag;
 union d4v crc;
-union d4v file;
+//union d4v file;
 
 extern uint8_t ds18b20_amount, disableBeep, topOwner, topUser, botUser, ok0, ok1, psword, pvAeration;
 extern int16_t buf;
@@ -288,7 +287,6 @@ int main(void)
   HAL_RTCEx_SetSecond_IT(&hrtc);          // Sets Interrupt for second
   HAL_RTC_GetTime(&hrtc, &sTime, RTC_FORMAT_BIN);
   HAL_RTC_GetDate(&hrtc, &sDate, RTC_FORMAT_BIN);
-  sprintf(fileName,"%02u_%02u_%02u",sDate.Year,sDate.Month,sDate.Date);
   //******************************************************************************
   for(int8_t i=0;i<8;i++) {setChar(i,SIMBL_BL); PointOn(i); LedOn(i,3);}// "BL"+точки
   SendDataTM1638();
@@ -343,7 +341,6 @@ int main(void)
     //-------------------- перевіримо чи настав інший день ------------
         if (((sTime.Hours+sTime.Minutes+sTime.Seconds)<=4)){
           writeDateToBackup(RTC_BKP_DR1);             // сохраним обновленную дату
-          sprintf(fileName,"%02u_%02u_%02u",sDate.Year,sDate.Month,sDate.Date);
         }
     //-------------------- температура и влажность --------------------
 
@@ -503,13 +500,6 @@ int main(void)
           if(--waitset==0){
             if(EEPSAVE){
               eep_write(0x0000, eep.data, EEP_DATA);    // запись в энергонезависимую память
-              if(file.data[0]){                         // заполнены поля для файла *.eep
-                if(file.data[0]==2){
-                  sprintf(fileName,"%02u_%02u_%02u",sDate.Year,sDate.Month,sDate.Date);
-                  writeDateToBackup(RTC_BKP_DR1);       // і запишемо до backup регістрів дату
-                }
-                file.data[0] = 0;                       // очистим флаг
-              }
             }
             if(servis==7){upv.pv.node = eep.sp.identif; bluetoothName(eep.sp.identif);}   // коррекция Broadcast name 
             servis=0;setup=0;displmode=0;psword=0;buf=0;topUser=TOPUSER;botUser=BOTUSER;} // возвращяемся к основному экрану, сброс пароля 

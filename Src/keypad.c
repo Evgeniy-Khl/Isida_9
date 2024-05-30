@@ -3,6 +3,7 @@
 #include "global.h"   // здесь определена структура eeprom и структура rampv
 #include "keypad.h"
 #include "proc.h"
+#include "rtc.h"
 
 extern RTC_HandleTypeDef hrtc;
 extern RTC_TimeTypeDef sTime;
@@ -10,8 +11,7 @@ extern RTC_DateTypeDef sDate;
 extern int8_t countsec, getButton, displmode;
 extern uint8_t ok0, ok1, keyBuffer[], setup, waitset, waitkey, modules, servis;
 extern int16_t alarmErr;
-extern char fileName[];
-extern union d4v file;
+
 uint8_t disableBeep, topOwner, topUser, botUser, psword, keynum;
 int16_t buf;
 /*
@@ -191,25 +191,21 @@ void checkkey(struct eeprom *t, struct rampv *ram){
            case KEY_2:
             {
               buf++; EEPSAVE=1; waitkey=WAITCOUNT;
-              file.data[0]=3; file.data[1]=servis;
               switch (servis)
                {
-                 case 7:  t->identif = buf&0x3F; file.data[2]=t->identif; break;          // C7 -> identif (1-63) 
+                 case 7:  t->identif = buf&0x3F; break;          // C7 -> identif (1-63) 
                  case 8:// сохр.знач.FLAPOPEN;     запишем «ональность;      добав.знач.FLAPOPEN  
                           xx = t->zonaFlap&0x3F; t->zonaFlap = (buf&0x03)<<6; t->zonaFlap |= xx;  // (маска 0b1100 0000)
-                          file.data[2]=buf&0x03;
                   break;         // C8-> порог зональности в камере
                  case 9:// сохр.знач.«ональности;    запишем FLAPOPEN;     добав.знач.«ональности  
                           xx = t->zonaFlap&0xC0;   t->zonaFlap = ((buf-37)&0x3F); t->zonaFlap |= xx;  // (маска 0b0011 1111) 100-37=63->0x3F
-                          file.data[2]=buf;
                   break;         // C9-> FLAPOPEN
-                 case 10:  t->turnTime= buf&0x3FF; file.data[2]=t->turnTime; break;       // 10-> TURNTIME врем€ ожидани€ прохода лотков в сек. 
-                 case 11: t->waitCooling=(buf&0x3F)*6; file.data[2]=t->waitCooling; break;// 11-> TIME OUT ожидани€ начала охлаждени€ в мин. 10 мин. *6 = 60(*10) -> 600 сек. 
+                 case 10:  t->turnTime= buf&0x3FF; break;       // 10-> TURNTIME врем€ ожидани€ прохода лотков в сек. 
+                 case 11: t->waitCooling=(buf&0x3F)*6; break;// 11-> TIME OUT ожидани€ начала охлаждени€ в мин. 10 мин. *6 = 60(*10) -> 600 сек. 
                  case 12://сохр.знач.гистерезиса;    запишем разрешени€;      добав.знач.гистерезиса  
                           xx = t->hysteresis&3; t->hysteresis = (buf&0x03)<<6; t->hysteresis |= xx;  // (маска 0b1100 0000)
-                          file.data[2]=buf&0x03;
                   break;         // 12-> разрешено использовать HIH-5030/AM2301
-                 case 13: t->koffCurr= buf&0xFF; file.data[2]=t->koffCurr; break;         // 13-> koffCurr маштабный коэф. по току симистора 
+                 case 13: t->koffCurr= buf&0xFF; break;         // 13-> koffCurr маштабный коэф. по току симистора 
                  case 14: HAL_RTC_GetTime(&hrtc, &sTime, RTC_FORMAT_BIN);
                           sTime.Minutes = buf;                                        // 14-> sTime.Hours
                           HAL_RTC_SetTime(&hrtc, &sTime, RTC_FORMAT_BIN);
@@ -220,18 +216,18 @@ void checkkey(struct eeprom *t, struct rampv *ram){
                   break;
                  case 16: HAL_RTC_GetDate(&hrtc, &sDate, RTC_FORMAT_BIN);
                           sDate.Date = buf;                                           // 16-> sDate.Date
-                          file.data[0]=2; file.data[1]=2; file.data[2]=(uint8_t)buf;
                           HAL_RTC_SetDate(&hrtc, &sDate, RTC_FORMAT_BIN);
+                          writeDateToBackup(RTC_BKP_DR1);       // ≥ запишемо до backup рег≥стр≥в дату
                   break;
                  case 17: HAL_RTC_GetDate(&hrtc, &sDate, RTC_FORMAT_BIN);
                           sDate.Month = buf;                                          // 17-> sDate.Month
-                          file.data[0]=2; file.data[1]=3; file.data[2]=(uint8_t)buf;
                           HAL_RTC_SetDate(&hrtc, &sDate, RTC_FORMAT_BIN);
+                          writeDateToBackup(RTC_BKP_DR1);       // ≥ запишемо до backup рег≥стр≥в дату
                   break;
                  case 18: HAL_RTC_GetDate(&hrtc, &sDate, RTC_FORMAT_BIN);
                           sDate.Year = buf;                                           // 18-> sDate.Year
-                          file.data[0]=2; file.data[1]=4; file.data[2]=(uint8_t)buf;
                           HAL_RTC_SetDate(&hrtc, &sDate, RTC_FORMAT_BIN);
+                          writeDateToBackup(RTC_BKP_DR1);       // ≥ запишемо до backup рег≥стр≥в дату
                   break;
 
                }
@@ -273,25 +269,21 @@ void checkkey(struct eeprom *t, struct rampv *ram){
            case KEY_4:
             {
               buf--; EEPSAVE=1; waitkey=WAITCOUNT;
-              file.data[0]=3; file.data[1]=servis;
               switch (servis)
                {
-                 case 7:  t->identif = buf&0x3F; file.data[2]=t->identif; break;          // C7 -> identif
+                 case 7:  t->identif = buf&0x3F; break;          // C7 -> identif
                  case 8:// сохр.знач.FLAPOPEN;     запишем «ональность;      добав.знач.FLAPOPEN  
                           xx = t->zonaFlap&0x3F; t->zonaFlap = (buf&0x03)<<6; t->zonaFlap |= xx;  // (маска 0b1100 0000)
-                          file.data[2]=buf&0x03;
                   break;         // C8-> порог зональности в камере
                  case 9:// сохр.знач.«ональности;    запишем FLAPOPEN;         добав.знач.«ональности  
                           xx = t->zonaFlap&0xC0; t->zonaFlap = ((buf-37)&0x3F); t->zonaFlap |= xx;  // (маска 0b0011 1111) 100-37=63->0x3F
-                          file.data[2]=buf;
                   break;         // C9-> FLAPOPEN
-                 case 10:  t->turnTime= buf&0x3FF; file.data[2]=t->turnTime; break;       // 10 -> TURNTIME врем€ ожидани€ прохода лотков в сек.
-                 case 11: t->waitCooling=(buf&0x3F)*6; file.data[2]=t->waitCooling; break;// 11-> TIME OUT ожидани€ начала охлаждени€ в мин. 10 мин. *6 = 60(*10) сек.
+                 case 10:  t->turnTime= buf&0x3FF; break;       // 10 -> TURNTIME врем€ ожидани€ прохода лотков в сек.
+                 case 11: t->waitCooling=(buf&0x3F)*6; break;// 11-> TIME OUT ожидани€ начала охлаждени€ в мин. 10 мин. *6 = 60(*10) сек.
                  case 12://сохр.знач.гистерезиса;    запишем разрешени€;      добав.знач.гистерезиса 
                           xx = t->hysteresis&3; t->hysteresis = (buf&0x03)<<6; t->hysteresis |= xx; 
-                          file.data[2]=buf&0x03;
                  break;         // 12-> разрешено использовать HIH-5030/AM2301
-                 case 13: t->koffCurr= buf&0xFF; file.data[2]=t->koffCurr; break;         // 13-> koffCurr маштабный коэф. по току симистора
+                 case 13: t->koffCurr= buf&0xFF; break;         // 13-> koffCurr маштабный коэф. по току симистора
                  case 14: HAL_RTC_GetTime(&hrtc, &sTime, RTC_FORMAT_BIN);
                           sTime.Minutes = buf; sTime.Seconds = 0;
                           HAL_RTC_SetTime(&hrtc, &sTime, RTC_FORMAT_BIN);
@@ -302,18 +294,18 @@ void checkkey(struct eeprom *t, struct rampv *ram){
                   break;                                        // 15-> sTime.Hours
                  case 16: HAL_RTC_GetDate(&hrtc, &sDate, RTC_FORMAT_BIN);
                           sDate.Date = buf;
-                          file.data[0]=2; file.data[1]=2; file.data[2]=(uint8_t)buf;
                           HAL_RTC_SetDate(&hrtc, &sDate, RTC_FORMAT_BIN);
+                          writeDateToBackup(RTC_BKP_DR1);       // ≥ запишемо до backup рег≥стр≥в дату
                   break;                                        // 16-> sDate.Date
                  case 17: HAL_RTC_GetDate(&hrtc, &sDate, RTC_FORMAT_BIN);
                           sDate.Month = buf;
-                          file.data[0]=2; file.data[1]=3; file.data[2]=(uint8_t)buf;
                           HAL_RTC_SetDate(&hrtc, &sDate, RTC_FORMAT_BIN);
+                          writeDateToBackup(RTC_BKP_DR1);       // ≥ запишемо до backup рег≥стр≥в дату
                   break;                                        // 17-> sDate.Month
                  case 18: HAL_RTC_GetDate(&hrtc, &sDate, RTC_FORMAT_BIN);
                           sDate.Year = buf;
-                          file.data[0]=2; file.data[1]=4; file.data[2]=(uint8_t)buf;
                           HAL_RTC_SetDate(&hrtc, &sDate, RTC_FORMAT_BIN);
+                          writeDateToBackup(RTC_BKP_DR1);       // ≥ запишемо до backup рег≥стр≥в дату
                   break;                                        // 18-> sDate.Year
                }
             } break;
@@ -330,7 +322,7 @@ void checkkey(struct eeprom *t, struct rampv *ram){
            case KEY_6: psword=0; displmode=0; buf=0; t->state &=0xE7; servis=0; setup=0; waitkey=WAITCOUNT; beeper_ON(DURATION*10); break;// –≈∆»ћџ ќ“ Ћё„≈Ќџ
            case KEY_6_5: if((t->state&7)==0){t->state|=0x01; t->state&=0x7F; beeper_ON(DURATION*2);}
                          else {t->state&=0x60; beeper_ON(DURATION*5);} 
-                         countsec=-5; ok0=0; ok1=0; psword=0; EEPSAVE=1; waitset=1; file.data[0]=1; file.data[1]=t->state; waitkey=WAITCOUNT;
+                         countsec=-5; ok0=0; ok1=0; psword=0; EEPSAVE=1; waitset=1; waitkey=WAITCOUNT;
                 break;
            case KEY_7_5: if((t->state&0x1F)==0) t->state|=0x80; countsec=-5; psword=0; EEPSAVE=1; waitset=1; break; //¬ Ћё„»“№ ѕоворот лотков при ќ“ Ћё„≈ЌЌќ… камере !!!
            case KEY_8_5: if(t->state&0x80) t->state&=0x7F; countsec=-5; psword=0; EEPSAVE=1; waitset=1; break;      //ќ“ Ћё„»“№ ѕоворот лотков при ќ“ Ћё„≈ЌЌќ… камере !!!
