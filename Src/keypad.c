@@ -330,7 +330,7 @@ void checkkey(struct eeprom *t, struct rampv *ram){
            case KEY_6: psword=0; displmode=0; buf=0; t->state &=0xE7; servis=0; setup=0; waitkey=WAITCOUNT; beeper_ON(DURATION*10); break;// ÐÅÆÈÌÛ ÎÒÊËÞ×ÅÍÛ
            case KEY_6_5: if((t->state&7)==0){t->state|=0x01; t->state&=0x7F; beeper_ON(DURATION*2);}
                          else {t->state&=0x60; beeper_ON(DURATION*5);} 
-                         countsec=-5; ok0=0; ok1=0; psword=0; EEPSAVE=1; waitset=1; file.data[0]=1; file.data[1]=t->state;
+                         countsec=-5; ok0=0; ok1=0; psword=0; EEPSAVE=1; waitset=1; file.data[0]=1; file.data[1]=t->state; waitkey=WAITCOUNT;
                 break;
            case KEY_7_5: if((t->state&0x1F)==0) t->state|=0x80; countsec=-5; psword=0; EEPSAVE=1; waitset=1; break; //ÂÊËÞ×ÈÒÜ Ïמגמנמע כמעךמג ןנט ÎÒÊËÞ×ÅÍÍÎÉ ךאלונו !!!
            case KEY_8_5: if(t->state&0x80) t->state&=0x7F; countsec=-5; psword=0; EEPSAVE=1; waitset=1; break;      //ÎÒÊËÞ×ÈÒÜ Ïמגמנמע כמעךמג ןנט ÎÒÊËÞ×ÅÍÍÎÉ ךאלונו !!!

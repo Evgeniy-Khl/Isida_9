@@ -21,7 +21,6 @@
 
 /* Includes ------------------------------------------------------------------*/
 #include "main.h"
-#include "fatfs.h"
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
@@ -30,7 +29,6 @@
 #include "module.h"
 #include "ds18b20.h"
 #include "hih.h"
-#include "FatFsAPI.h"
 #include "rtc.h"
 
 //#include "stm32f1xx_hal_adc.h"
@@ -59,7 +57,6 @@ I2C_HandleTypeDef hi2c1;
 
 RTC_HandleTypeDef hrtc;
 
-SPI_HandleTypeDef hspi1;
 SPI_HandleTypeDef hspi2;
 
 TIM_HandleTypeDef htim3;
@@ -88,7 +85,7 @@ extern struct bluetooth bluetoothData;
 
 // -------- ISIDA ------
 uint8_t getButton=0, modules=0, setup, servis, waitset, waitkey=WAITCOUNT;
-int8_t countsec=-10, countmin, displmode, cardOk=0;
+int8_t countsec=-10, countmin, displmode, pouseFuse;
 /*
 ext[0] модуль Холла
 ext[1] модуль ГОРИЗОНТА
@@ -193,7 +190,6 @@ static void MX_TIM3_Init(void);
 static void MX_TIM4_Init(void);
 static void MX_SPI2_Init(void);
 static void MX_USART1_UART_Init(void);
-static void MX_SPI1_Init(void);
 static void MX_RTC_Init(void);
 static void MX_USART3_UART_Init(void);
 /* USER CODE BEGIN PFP */
@@ -205,15 +201,15 @@ uint8_t bluetoothName(uint8_t number);
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
 // Функция обратного вызова обработки прерывания EXTI Line9 External Interrupt
-void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin){
+//void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin){
 //  switch (GPIO_Pin){
 //   	case GPIO_PIN_0: upv.pv.fuses |= 0x01; HUMIDI = OFF; break;// PA0 - OUT2 увлажнитель
 //   	case GPIO_PIN_1: upv.pv.fuses |= 0x02; FLAP = OFF;   break;// PA1 - OUT3 вентиляция
 //   	case GPIO_PIN_2: upv.pv.fuses |= 0x04; EXTRA = OFF;  break;// PA2 - OUT4 вспомогательны канал 2
 //   	case GPIO_PIN_3: upv.pv.fuses |= 0x08; TURN = OFF;   break;// PA3 - OUT5 поворот
 //   } 
-  set_Output();
-}
+//  set_Output();
+//}
 /* USER CODE END 0 */
 
 /**
@@ -258,8 +254,6 @@ int main(void)
   MX_TIM4_Init();
   MX_SPI2_Init();
   MX_USART1_UART_Init();
-  MX_SPI1_Init();
-  MX_FATFS_Init();
   MX_RTC_Init();
   MX_USART3_UART_Init();
   /* USER CODE BEGIN 2 */
@@ -310,6 +304,7 @@ int main(void)
       }
   }
   // *** -------- сброс к заводским настройкам ------------- ***
+  if(eep.sp.identif>63) eep.sp.identif = 0;
   if (eep.sp.identif == 0) eep_initial(0x0000, eep.data);
 
   init(&eep.sp, &upv.pv);   // инициализация аппаратной части и подключаемых модулей
@@ -322,6 +317,7 @@ int main(void)
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
   getButton = waitkey/4;
+  upv.pv.fuses = fuseOut.value = 0;
 	while (1){
   //----------------------------------- Теперь будем опрашивать три канала на одном АЦП с помощью DMA… -------------------------------------------
 
@@ -330,7 +326,10 @@ int main(void)
 
   /*** ------------------------------------------- BEGIN таймер TIM4 1 Гц. ----------------------------------------------------------------------- ***/
       if(CHECK){   // ------- новая секунда --------------------------------------------------------------
-        CHECK=0; DISPLAY=1; ALARM=0; upv.pv.errors=0; upv.pv.warning=0;
+        CHECK=0; DISPLAY=1; ALARM=0; upv.pv.errors=0; upv.pv.warning=0; 
+//        if(upv.pv.fuses){
+//          if(++pouseFuse>2){pouseFuse = upv.pv.fuses = fuseOut.value = 0;}
+//        }
         HAL_ADC_Start_DMA(&hadc1, (uint32_t*)&adc, 3);
         while(flag==0);
         flag = 0;
@@ -455,9 +454,6 @@ int main(void)
           if((upv.pv.warning & 3)&&(newErr-alarmErr)>2) disableBeep=0;  // если при блокироке сирены продолжает увеличиватся ошибка сброс блокировки
           if(countsec>59){
             ++countmin; countsec=0; if (disableBeep) disableBeep--;
-            
-            if(cardOk) My_LinkDriver(".txt");  // запись на SD если КАМЕРА ВКЛЮЧЕНА в работу
-            
             if(!(eep.sp.state&0x18)) rotate_trays(eep.sp.timer[0], eep.sp.timer[1], &upv.pv);   // выполняется только если Камера ВКЛ.
             if(upv.pv.pvCO2>0) CO2_check(eep.sp.spCO2, eep.sp.spCO2, upv.pv.pvCO2);             // Проверка концентрации СО2
             else if(eep.sp.air[1]>0) aeration_check(eep.sp.air[0], eep.sp.air[1]);              // Проветривание выполняется только если air[1]>0
@@ -498,7 +494,6 @@ int main(void)
                if(currAdc>1000){upv.pv.errors|=0x04;}   // если сила тока > 1000 mV ПРОБОЙ СИМИСТОРА!
                if(countsec>59){
                 countsec=0;
-//                if(cardOk) SD_write(fileName, p_eeprom, p_rampv); else My_LinkDriver();  // ????????????????????????????????????????????
                 if(eep.sp.state&0x80) rotate_trays(eep.sp.timer[0], eep.sp.timer[1], &upv.pv); // Поворот лотков при ОТКЛЮЧЕННОЙ камере
                }
             }
@@ -513,7 +508,6 @@ int main(void)
                   sprintf(fileName,"%02u_%02u_%02u",sDate.Year,sDate.Month,sDate.Date);
                   writeDateToBackup(RTC_BKP_DR1);       // і запишемо до backup регістрів дату
                 }
-                if(cardOk) My_LinkDriver(".eep");       // если вставлена SD запись в файл *.eep
                 file.data[0] = 0;                       // очистим флаг
               }
             }
@@ -555,16 +549,16 @@ int main(void)
 
     /* USER CODE BEGIN 3 */
       if(coolerAdc < 250) COOLER=0; else if(coolerAdc > 300) COOLER = 1;  // температура 40С = 2,50V; 55C = 3.0V
-      if(pwTriac0 < 0) {pwTriac0=0; HEATER = 0; LEDOFF = 1; /*set_Pulse(500);*/}  // HEATER Off  64 mks // LEDOFF = 1 для быстрого отключения светодиодов pwTriac0
-      if(pwTriac1 < 0) {pwTriac1=0; HUMIDI = 0; LEDOFF = 1;}  // HUMIDIFIER Off // LEDOFF = 1 для быстрого отключения светодиодов pwTriac1
+      if(pwTriac0 < 0) {pwTriac0=0; HEATER = 0; ALLOFF = 1; /*set_Pulse(500);*/}  // HEATER Off  64 mks // ALLOFF = 1 для быстрого отключения светодиодов pwTriac0
+      if(pwTriac1 < 0) {pwTriac1=0; HUMIDI = 0; ALLOFF = 1;}  // HUMIDIFIER Off // ALLOFF = 1 для быстрого отключения светодиодов pwTriac1
       if(eep.sp.relayMode==4){                                 // импульсный режим работы насоса
         if(pulsPeriod < 0){
           pulsPeriod = eep.sp.period;
-          if(pwTriac1 && (upv.pv.fuses&0x01)==0) {pwTriac1=valRun; HUMIDI = 1; LEDOFF = 1;}  // HUMIDIFIER On // LEDOFF = 1 для быстрого отключения светодиодов pwTriac1
+          if(pwTriac1 && (upv.pv.fuses&0x01)==0) {pwTriac1=valRun; HUMIDI = 1; ALLOFF = 1;}  // HUMIDIFIER On // ALLOFF = 1 для быстрого отключения светодиодов pwTriac1
         }
       }
-      // LEDOFF = 1 для быстрого отключения светодиодов pwTriac0, pwTriac1
-      if(LEDOFF) {LEDOFF = 0; ledOut(eep.sp.state, upv.pv.warning, upv.pv.fuses, eep.sp.programm); SendDataTM1638(); set_Output();}  // запись в микросхемы TM1638 и 74HC595D
+      // ALLOFF = 1 для быстрого отключения светодиодов pwTriac0, pwTriac1
+      if(ALLOFF) {set_Output(); ALLOFF = 0; ledOut(eep.sp.state, upv.pv.warning, upv.pv.fuses, eep.sp.programm); SendDataTM1638();}  // запись в микросхемы TM1638 и 74HC595D
       if(beepOn < 0) {beepOn=0; HAL_GPIO_WritePin(Beeper_GPIO_Port, Beeper_Pin, GPIO_PIN_RESET);}  // Beeper Off
   /* ------------------------------------------------------------------------------------------------------------------ */
       if(bluetoothData.ind == 0){
@@ -768,44 +762,6 @@ static void MX_RTC_Init(void)
   /* USER CODE BEGIN RTC_Init 2 */
 
   /* USER CODE END RTC_Init 2 */
-
-}
-
-/**
-  * @brief SPI1 Initialization Function
-  * @param None
-  * @retval None
-  */
-static void MX_SPI1_Init(void)
-{
-
-  /* USER CODE BEGIN SPI1_Init 0 */
-
-  /* USER CODE END SPI1_Init 0 */
-
-  /* USER CODE BEGIN SPI1_Init 1 */
-
-  /* USER CODE END SPI1_Init 1 */
-  /* SPI1 parameter configuration*/
-  hspi1.Instance = SPI1;
-  hspi1.Init.Mode = SPI_MODE_MASTER;
-  hspi1.Init.Direction = SPI_DIRECTION_2LINES;
-  hspi1.Init.DataSize = SPI_DATASIZE_8BIT;
-  hspi1.Init.CLKPolarity = SPI_POLARITY_LOW;
-  hspi1.Init.CLKPhase = SPI_PHASE_1EDGE;
-  hspi1.Init.NSS = SPI_NSS_SOFT;
-  hspi1.Init.BaudRatePrescaler = SPI_BAUDRATEPRESCALER_256;
-  hspi1.Init.FirstBit = SPI_FIRSTBIT_MSB;
-  hspi1.Init.TIMode = SPI_TIMODE_DISABLE;
-  hspi1.Init.CRCCalculation = SPI_CRCCALCULATION_DISABLE;
-  hspi1.Init.CRCPolynomial = 10;
-  if (HAL_SPI_Init(&hspi1) != HAL_OK)
-  {
-    Error_Handler();
-  }
-  /* USER CODE BEGIN SPI1_Init 2 */
-
-  /* USER CODE END SPI1_Init 2 */
 
 }
 
@@ -1038,7 +994,7 @@ static void MX_GPIO_Init(void)
   HAL_GPIO_WritePin(LED_GPIO_Port, LED_Pin, GPIO_PIN_SET);
 
   /*Configure GPIO pin Output Level */
-  HAL_GPIO_WritePin(GPIOB, OUT_RCK_Pin|DISPL_STB_Pin|SD_CS_Pin, GPIO_PIN_RESET);
+  HAL_GPIO_WritePin(GPIOB, OUT_RCK_Pin|DISPL_STB_Pin, GPIO_PIN_RESET);
 
   /*Configure GPIO pin Output Level */
   HAL_GPIO_WritePin(GPIOA, DE485_Pin|Beeper_Pin, GPIO_PIN_RESET);
@@ -1050,8 +1006,8 @@ static void MX_GPIO_Init(void)
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
   HAL_GPIO_Init(LED_GPIO_Port, &GPIO_InitStruct);
 
-  /*Configure GPIO pins : PA0 PA1 PA2 PA3 */
-  GPIO_InitStruct.Pin = GPIO_PIN_0|GPIO_PIN_1|GPIO_PIN_2|GPIO_PIN_3;
+  /*Configure GPIO pins : F0_Pin F1_Pin F2_Pin F3_Pin */
+  GPIO_InitStruct.Pin = F0_Pin|F1_Pin|F2_Pin|F3_Pin;
   GPIO_InitStruct.Mode = GPIO_MODE_IT_FALLING;
   GPIO_InitStruct.Pull = GPIO_PULLUP;
   HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
@@ -1101,13 +1057,6 @@ static void MX_GPIO_Init(void)
   GPIO_InitStruct.Mode = GPIO_MODE_INPUT;
   GPIO_InitStruct.Pull = GPIO_PULLUP;
   HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
-
-  /*Configure GPIO pin : SD_CS_Pin */
-  GPIO_InitStruct.Pin = SD_CS_Pin;
-  GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
-  GPIO_InitStruct.Pull = GPIO_PULLUP;
-  GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
-  HAL_GPIO_Init(SD_CS_GPIO_Port, &GPIO_InitStruct);
 
   /* EXTI interrupt init*/
   HAL_NVIC_SetPriority(EXTI0_IRQn, 0, 0);

@@ -6,7 +6,6 @@
 #include "global.h"   // здесь определена структура eeprom
 #include "am2301.h"
 #include "proc.h"
-#include "FatFsAPI.h"
 
 extern uint8_t ds18b20_amount, modules, nextTurn, pvAeration, topUser, card;
 extern int16_t humAdc;
@@ -59,10 +58,6 @@ void init(struct eeprom *t, struct rampv *ram){
 //---------- Инициализация аппаратной части --------------------
   err=0;
   if(t->koffCurr==0)  err|=1;   // E01 - ОТКЛЮЧЕН мониторинг тока симистора
-//---------- Монтирование SD карты --------------------  
-  if(My_LinkDriver(".txt")) err|=2;   // E02 - ошибка инициализация SD карты 
-  
-//  if(xxx) err|=4;   // E04 - инициализация 
 //==============================================================
   setChar(3,SIMBL_E); setChar(4,err/10); setChar(5,err); // "E00"
   setChar(6,DISPL_MINUS); setChar(7,DISPL_MINUS);  // "--"

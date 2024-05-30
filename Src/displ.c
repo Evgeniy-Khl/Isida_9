@@ -7,7 +7,7 @@ extern RTC_HandleTypeDef hrtc;
 extern RTC_TimeTypeDef sTime;
 extern RTC_DateTypeDef sDate;
 extern int8_t displmode, countsec, disableBeep, keynum;
-extern uint8_t ok0, ok1, psword, setup, servis, cardOk;
+extern uint8_t ok0, ok1, psword, setup, servis;
 extern int16_t buf, currAdc, humAdc, coolerAdc, pvCurrent;
 extern float iPart[3];
 
@@ -27,7 +27,7 @@ void ledOut(uint8_t state, uint8_t warning, uint8_t fuses, uint8_t prog){
   if(prog) LedOn(6,1);      // работает по программе
   if(countsec&1){               // МИГАНИЕ каждую секунду
     if(state&0x02) LedOn(5,1);  // Режим "подгототка к ОХЛАЖДЕНИЮ"
-    if(cardOk) LedOn(7,1);  // идет запись на SD карту
+//    if(cardOk) LedOn(7,1);  // идет запись на SD карту
     if(!HAL_GPIO_ReadPin(Door_GPIO_Port, Door_Pin)) LedOn(4,2);  // концевик дверей
 //    if(warning&0x01) LedOn(0,2);//?????????????????????
 //    if(warning&0x02) LedOn(1,2);//?????????????????????

@@ -63,14 +63,20 @@ void Error_Handler(void);
 /* Private defines -----------------------------------------------------------*/
 #define LED_Pin GPIO_PIN_13
 #define LED_GPIO_Port GPIOC
+#define F0_Pin GPIO_PIN_0
+#define F0_GPIO_Port GPIOA
+#define F0_EXTI_IRQn EXTI0_IRQn
+#define F1_Pin GPIO_PIN_1
+#define F1_GPIO_Port GPIOA
+#define F1_EXTI_IRQn EXTI1_IRQn
+#define F2_Pin GPIO_PIN_2
+#define F2_GPIO_Port GPIOA
+#define F2_EXTI_IRQn EXTI2_IRQn
+#define F3_Pin GPIO_PIN_3
+#define F3_GPIO_Port GPIOA
+#define F3_EXTI_IRQn EXTI3_IRQn
 #define ADC_COOLER_Pin GPIO_PIN_4
 #define ADC_COOLER_GPIO_Port GPIOA
-#define SD_SCK_Pin GPIO_PIN_5
-#define SD_SCK_GPIO_Port GPIOA
-#define SD_MISO_Pin GPIO_PIN_6
-#define SD_MISO_GPIO_Port GPIOA
-#define SD_MOSI_Pin GPIO_PIN_7
-#define SD_MOSI_GPIO_Port GPIOA
 #define ADC_CURR_Pin GPIO_PIN_0
 #define ADC_CURR_GPIO_Port GPIOB
 #define ADC_HUM_Pin GPIO_PIN_1
@@ -99,8 +105,6 @@ void Error_Handler(void);
 #define Door_GPIO_Port GPIOB
 #define OVERHEAT_Pin GPIO_PIN_4
 #define OVERHEAT_GPIO_Port GPIOB
-#define SD_CS_Pin GPIO_PIN_5
-#define SD_CS_GPIO_Port GPIOB
 #define mem_SCL_Pin GPIO_PIN_6
 #define mem_SCL_GPIO_Port GPIOB
 #define mem_SDA_Pin GPIO_PIN_7
@@ -260,7 +264,7 @@ struct bluetooth{
 #define DOOR  	fuseOut.bitfield.a4  // дверь открыта
 #define FAN   	fuseOut.bitfield.a5  // останов тихоходного вентил€тора
 #define TRAYS   fuseOut.bitfield.a6  // нет поворота лотков
-#define OTHER   fuseOut.bitfield.a7  // 
+#define SHCIRC  fuseOut.bitfield.a7  // короткое замыкание в какой то из цепей
 
 #define CHECK   portFlag.bitfield.a0  // Start of all checks
 #define ALARM   portFlag.bitfield.a1  // Alarm flag
@@ -268,7 +272,7 @@ struct bluetooth{
 #define EEPSAVE portFlag.bitfield.a3  // Save in EEPROM flag
 #define HIH5030	portFlag.bitfield.a4  // exist HIH5030 flag
 #define AM2301	portFlag.bitfield.a5  // exist AM2301 flag
-#define LEDOFF  portFlag.bitfield.a6  // 
+#define ALLOFF  portFlag.bitfield.a6  // 
 #define DISPLAY portFlag.bitfield.a7  // 
 
 #define HEATER  portOut.bitfield.a0  // Ќј√–≈¬ј“≈Ћ№

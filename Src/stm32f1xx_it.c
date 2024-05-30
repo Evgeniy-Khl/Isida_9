@@ -24,7 +24,7 @@
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
 #include "global.h"   // здесь определена структура eeprom и структура rampv
-
+#include "proc.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -97,9 +97,8 @@ void HardFault_Handler(void)
 //	sprintf(writing1, "Fault");
 //	mem_display(1000, (char*)writing0, (char*)writing1);
   for(uint8_t i=0;i<8;i++) {setChar(i,SIMBL_BL); PointOff(i);}  // clear
-  setChar(0,SIMBL_E); setChar(1,9);  setChar(2,9);  // "E99"
+  setChar(0,SIMBL_E); setChar(1,9); setChar(2,9); // "E99"
   SendDataTM1638();
-//  HAL_Delay(2000);
 //  // Выполняем "мягкое" аппаратное перезапуска микроконтроллера
 //  NVIC_SystemReset();
   /* USER CODE END HardFault_IRQn 0 */
@@ -201,6 +200,7 @@ void SysTick_Handler(void)
 {
   /* USER CODE BEGIN SysTick_IRQn 0 */
   /* ------  SysTick с периодом 1 мс.  ----*/
+  if(SHCIRC) {SHCIRC=0; set_Output();}
   beepOn--;
   bluetoothData.timeOut++;
   /* USER CODE END SysTick_IRQn 0 */
@@ -237,7 +237,9 @@ void RTC_IRQHandler(void)
 void EXTI0_IRQHandler(void)
 {
   /* USER CODE BEGIN EXTI0_IRQn 0 */
-  FUSE0 = 1; HUMIDI = OFF;
+  if(F0_Pin == GPIO_PIN_0){
+    FUSE0 = 1; HUMIDI = OFF; SHCIRC = 1;
+  }
   /* USER CODE END EXTI0_IRQn 0 */
   HAL_GPIO_EXTI_IRQHandler(GPIO_PIN_0);
   /* USER CODE BEGIN EXTI0_IRQn 1 */
@@ -251,7 +253,9 @@ void EXTI0_IRQHandler(void)
 void EXTI1_IRQHandler(void)
 {
   /* USER CODE BEGIN EXTI1_IRQn 0 */
-  FUSE1 = 1; FLAP = OFF;
+  if(F1_Pin == GPIO_PIN_1){
+    FUSE1 = 1; FLAP = OFF; SHCIRC = 1;
+  }
   /* USER CODE END EXTI1_IRQn 0 */
   HAL_GPIO_EXTI_IRQHandler(GPIO_PIN_1);
   /* USER CODE BEGIN EXTI1_IRQn 1 */
@@ -265,7 +269,9 @@ void EXTI1_IRQHandler(void)
 void EXTI2_IRQHandler(void)
 {
   /* USER CODE BEGIN EXTI2_IRQn 0 */
-  FUSE2 = 1; EXTRA = OFF;
+  if(F2_Pin == GPIO_PIN_2){
+    FUSE2 = 1; EXTRA = OFF; SHCIRC = 1;
+  }
   /* USER CODE END EXTI2_IRQn 0 */
   HAL_GPIO_EXTI_IRQHandler(GPIO_PIN_2);
   /* USER CODE BEGIN EXTI2_IRQn 1 */
@@ -279,7 +285,9 @@ void EXTI2_IRQHandler(void)
 void EXTI3_IRQHandler(void)
 {
   /* USER CODE BEGIN EXTI3_IRQn 0 */
-  FUSE3 = 1; TURN = OFF;
+  if(F3_Pin == GPIO_PIN_3){
+    FUSE3 = 1; TURN = OFF; SHCIRC = 1;
+  }
   /* USER CODE END EXTI3_IRQn 0 */
   HAL_GPIO_EXTI_IRQHandler(GPIO_PIN_3);
   /* USER CODE BEGIN EXTI3_IRQn 1 */
